@@ -22,6 +22,15 @@ jobs:
         with:
           python-version: ${{ matrix.pythonversion }}
           architecture: ${{ matrix.arch }}
+          cache: pip
+
+      - name: Cache build downloads
+        uses: actions/cache@v4
+        with:
+          path: src/scripts/temp
+          key: build-downloads-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('src/scripts/build_lunatranslator.py') }}
+          restore-keys: |
+            build-downloads-${{ runner.os }}-${{ matrix.target }}-
 
       - name: Generate app icon from logo.png
         shell: powershell
@@ -29,8 +38,8 @@ jobs:
           python -m pip install --upgrade pip pillow
           python -c "from PIL import Image; src=r'src/files/static/logo.png'; dst=r'src/NativeImpl/exec/luna.ico'; im=Image.open(src).convert('RGBA'); im.save(dst, format='ICO', sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(24,24),(16,16)]); print('generated', dst)"
 
-      - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py cpp ${{ matrix.arch }} ${{ matrix.target }}
-      - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py hook ${{ matrix.arch }} ${{ matrix.target }}
+      - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py cpp ${{ matrix.arch }} ${{ matrix.target }} 0
+      - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py hook ${{ matrix.arch }} ${{ matrix.target }} 0
       - run:  C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py pyrt ${{ matrix.arch }} ${{ matrix.pythonversion }} ${{ matrix.target }}
       - run:  C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py merge ${{ matrix.arch }} ${{ matrix.target }}
 
