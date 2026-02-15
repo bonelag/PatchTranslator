@@ -2,7 +2,6 @@
 
 [![Build](https://github.com/bonelag/PatchTranslator/actions/workflows/build.yml/badge.svg)](https://github.com/bonelag/PatchTranslator/actions/workflows/build.yml)
 [![Release](https://github.com/bonelag/PatchTranslator/actions/workflows/release.yml/badge.svg)](https://github.com/bonelag/PatchTranslator/actions/workflows/release.yml)
-[![Docs](https://github.com/bonelag/PatchTranslator/actions/workflows/docbuild.yml/badge.svg)](https://github.com/bonelag/PatchTranslator/actions/workflows/docbuild.yml)
 [![License](https://img.shields.io/github/license/bonelag/PatchTranslator)](LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/bonelag/PatchTranslator)](https://github.com/bonelag/PatchTranslator/releases)
 
