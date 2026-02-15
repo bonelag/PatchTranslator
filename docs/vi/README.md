@@ -55,7 +55,7 @@ Nếu muốn xóa và tải lại, chú ý không xóa thư mục userconfig, n�
 
 Giải pháp: Tắt phần mềm diệt virus. Nếu không thể tắt (như Windows Defender), thêm vào danh sách tin cậy và sau đó tải xuống lại.
 
-Lưu ý: Để thực hiện việc HOOK trích xuất văn bản trò chơi, cần phải tiêm Dll vào trò chơi. Các tệp như shareddllproxy32.exe/LunaHost32.dll thực hiện điều này, do đó rất dễ bị coi là virus. Phần mềm hiện được tự động xây dựng bởi [Github Actions](https://github.com/HIllya51/LunaTranslator/actions). Trừ khi máy chủ Github bị nhiễm, không thể chứa virus, vì vậy có thể an tâm thêm vào danh sách tin cậy.
+Lưu ý: Để thực hiện việc HOOK trích xuất văn bản trò chơi, cần phải tiêm Dll vào trò chơi. Các tệp như shareddllproxy32.exe/LunaHost32.dll thực hiện điều này, do đó rất dễ bị coi là virus. Phần mềm hiện được tự động xây dựng bởi [Github Actions](https://github.com/bonelag/PatchTranslator/actions). Trừ khi máy chủ Github bị nhiễm, không thể chứa virus, vì vậy có thể an tâm thêm vào danh sách tin cậy.
 
 ::: details Đối với Windows Defender, phương pháp là: “Bảo vệ chống vi-rút & mối đe dọa” -> “Loại trừ” -> “Thêm hoặc xóa loại trừ” -> “Thêm loại trừ” -> “Thư mục”, thêm thư mục của Luna vào
 ![img](https://image.lunatranslator.org/zh/cantstart/4.png) 
