@@ -1,0 +1,1602 @@
+diff --git a/src/LunaTranslator/LunaTranslator.py b/src/LunaTranslator/LunaTranslator.py
+index ff38ad31..f1bd9105 100644
+--- a/src/LunaTranslator/LunaTranslator.py
++++ b/src/LunaTranslator/LunaTranslator.py
+@@ -73,6 +73,7 @@ from cishu.cishubase import cishubase
+ from translator.basetranslator import basetrans
+ from textio.textoutput.outputerbase import Base as outputerbase
+ from myutils.updater import versioncheckthread
++import ovl
+ from gui.qevent import DarkLightChangedEvent
+ from gui.setting.translate import autostartllamacpp
+ 
+@@ -783,10 +784,21 @@ class BASEOBJECT(QObject):
+                 and (iter_res_status in (0, 1))
+                 and (not waitforresultcallback)
+             ):
++                try:
++                    formatted_res = re.sub(r"(\[\d+ \d+\|\d+ \d+\])", r"\n\1", res).strip()
++                    print(f"[Engine] [{_TR(dynamicapiname(classname))}]\n{formatted_res}")
++                    self.safeinvokefunction.emit(partial(ovl.show_overlay, formatted_res))
++                except:
++                    print_exc()
++
++                res_clean = re.sub(r"\[\d+ \d+\|\d+ \d+\]\s*", "", res).replace(
++                    "\n", " "
++                ).strip()
++
+                 displayreskwargs = dict(
+                     name=_TR(dynamicapiname(classname)),
+                     color=TranslateColor(classname),
+-                    res=res,
++                    res=res_clean,
+                     iter_context=(iter_res_status, classname),
+                     klass=classname,
+                     is_auto_run=is_auto_run,
+diff --git a/src/LunaTranslator/defaultconfig/config.json b/src/LunaTranslator/defaultconfig/config.json
+index 13448b9d..1e7c20df 100644
+--- a/src/LunaTranslator/defaultconfig/config.json
++++ b/src/LunaTranslator/defaultconfig/config.json
+@@ -983,6 +983,12 @@
+             "_26_1": {
+                 "name": "再次进行OCR"
+             },
++            "_52": {
++                "name": "开关_Overlay"
++            },
++            "_53": {
++                "name": "关闭所有_Overlay"
++            },
+             "_28": {
+                 "name": "复制到剪贴板_翻译"
+             },
+@@ -1993,7 +1999,7 @@
+     ],
+     "selectable": true,
+     "selectableEx": false,
+-    "autoupdate": true,
++    "autoupdate": false,
+     "proxies": null,
+     "viewlistpos": 0,
+     "wordlabel": [],
+diff --git a/src/LunaTranslator/gui/setting/display.py b/src/LunaTranslator/gui/setting/display.py
+index dcbafcfa..1934a240 100644
+--- a/src/LunaTranslator/gui/setting/display.py
++++ b/src/LunaTranslator/gui/setting/display.py
+@@ -4,14 +4,16 @@ from gui.setting.display_buttons import createbuttonwidget
+ from gui.setting.display_text import xianshigrid_style
+ from gui.setting.display_ui import uisetting
+ from gui.setting.display_scale import makescalew
++from gui.setting.display_overlay import overlaysetting
+ from gui.usefulwidget import makesubtab_lazy, makescrollgrid
+ 
+ 
+ def setTabThree_lazy(self, basel: QLayout):
+-    titles = ["文本设置", "界面设置", "工具按钮", "窗口缩放"]
++    titles = ["文本设置", "界面设置", "OverlaySetting", "工具按钮", "窗口缩放"]
+     funcs = [
+         lambda l: makescrollgrid(xianshigrid_style(self), l),
+         lambda l: makescrollgrid(uisetting(self), l),
++        lambda l: makescrollgrid(overlaysetting(self), l),
+         functools.partial(createbuttonwidget, self),
+         lambda l: makescrollgrid(makescalew(), l),
+     ]
+diff --git a/src/LunaTranslator/gui/setting/display_overlay.py b/src/LunaTranslator/gui/setting/display_overlay.py
+new file mode 100644
+index 00000000..5f73ca1d
+--- /dev/null
++++ b/src/LunaTranslator/gui/setting/display_overlay.py
+@@ -0,0 +1,210 @@
++from qtsymbols import *
++import functools
++import json
++from pathlib import Path
++from gui.usefulwidget import (
++    D_getspinbox,
++    D_getcolorbutton,
++    D_getsimpleswitch,
++    getboxlayout,
++    FocusFontCombo
++)
++from myutils.config import _TR as _TR_original
++import ovl
++
++_en_cache = None
++    
++def _TR(key):
++    global _en_cache
++    res = _TR_original(key)
++    if res == key and isinstance(key, str):
++        if _en_cache is None:
++            try:
++                with open("files/lang/en.json", "r", encoding="utf-8") as f:
++                    _en_cache = json.load(f)
++            except:
++                _en_cache = {}
++        return _en_cache.get(key, key)
++    return res
++
++# Ensure config is loaded
++ovl.load_config()
++
++def save_overlay_config():
++    config_path = Path("userconfig/overlay.json")
++    if not config_path.parent.exists():
++        config_path.parent.mkdir(parents=True)
++    
++    # Filter only relevant keys to save
++    save_data = {k: v for k, v in ovl.CONFIG.items() if k in [
++        "enable", "text_color", "stroke_color", "stroke_width",
++        "min_font_size", "max_font_size", "font_family",
++        "background_color", "box_expansion", "timeout_ms",
++        "horizontal_padding", "vertical_padding"
++    ]}
++    
++    with open(config_path, "w", encoding="utf-8") as f:
++        json.dump(save_data, f, indent=4)
++
++def update_color_with_opacity(self, color_key, rgb_key, alpha_key):
++    # Combine RGB and Alpha to rgba string
++    color = QColor(ovl.CONFIG.get(rgb_key, "#000000"))
++    alpha = ovl.CONFIG.get(alpha_key, 255)
++    ovl.CONFIG[color_key] = f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha/255:.2f})"
++    save_overlay_config()
++
++def create_opacity_slider_generic(self, color_key, rgb_key, alpha_key):
++    slider = QSlider(Qt.Orientation.Horizontal)
++    slider.setRange(0, 255)
++    
++    # Parse current alpha
++    current_color = ovl.CONFIG.get(color_key, "rgba(0, 0, 0, 1)")
++    current_alpha = 255
++    try:
++        c = ovl.parse_color(current_color)
++        current_alpha = c.alpha()
++    except:
++        pass
++    
++    ovl.CONFIG[alpha_key] = current_alpha
++    slider.setValue(current_alpha)
++    
++    label = QLabel(f"{int(current_alpha/255*100)}%")
++    
++    def on_change(val):
++        ovl.CONFIG[alpha_key] = val
++        label.setText(f"{int(val/255*100)}%")
++        update_color_with_opacity(self, color_key, rgb_key, alpha_key)
++        
++    slider.valueChanged.connect(on_change)
++    
++    return getboxlayout([slider, label])
++
++def create_font_combo():
++    combo = FocusFontCombo()
++    current_font = ovl.CONFIG.get("font_family", "")
++    if current_font:
++        combo.setCurrentFont(QFont(current_font))
++    
++    def on_change(font_family):
++        ovl.CONFIG["font_family"] = font_family
++        save_overlay_config()
++        
++    combo.currentTextChanged.connect(on_change)
++    return combo
++
++def right_layout(w, unit="", fixed_width=None, unit_width=30):
++    if callable(w):
++        w = w()
++    if fixed_width:
++        w.setFixedWidth(fixed_width)
++    bg = QWidget()
++    lay = QHBoxLayout(bg)
++    lay.setContentsMargins(0,0,0,0)
++    lay.addStretch()
++    lay.addWidget(w)
++    
++    # Always add a unit label with fixed width for alignment
++    unit_label = QLabel(unit)
++    unit_label.setFixedWidth(unit_width)
++    unit_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
++    lay.addWidget(unit_label)
++    
++    return bg
++
++def overlaysetting(self):
++    # Helper to save on change
++    def generic_save(_):
++        save_overlay_config()
++
++    # Initialize virtual keys for colors
++    for color_key, rgb_key in [
++        ("background_color", "_bg_rgb"),
++        ("text_color", "_text_rgb"),
++        ("stroke_color", "_stroke_rgb")
++    ]:
++        current_val = ovl.CONFIG.get(color_key, "rgba(0, 0, 0, 1)")
++        try:
++            c = ovl.parse_color(current_val)
++            ovl.CONFIG[rgb_key] = c.name() # Hex
++        except:
++            ovl.CONFIG[rgb_key] = "#000000"
++
++    box_width = 250
++
++    return [
++        [
++            dict(
++                title=_TR("OverlaySetting"),
++                type="grid",
++                grid=[
++                    [
++                        _TR("ovlEnable"),
++                        (QWidget(), 0),
++                        right_layout(D_getsimpleswitch(ovl.CONFIG, "enable", callback=lambda x: (ovl.CONFIG.update({"enable": int(x)}), save_overlay_config()))),
++                    ],
++                    [
++                        _TR("ovlTextColor"),
++                        D_getcolorbutton(self, ovl.CONFIG, "_text_rgb", callback=lambda _: update_color_with_opacity(self, "text_color", "_text_rgb", "_text_alpha")),
++                        (QWidget(), 0),
++                        _TR("ovlTextOpacity"),
++                        functools.partial(create_opacity_slider_generic, self, "text_color", "_text_rgb", "_text_alpha"),
++                    ],
++                    [
++                        _TR("ovlStrokeColor"),
++                        D_getcolorbutton(self, ovl.CONFIG, "_stroke_rgb", callback=lambda _: update_color_with_opacity(self, "stroke_color", "_stroke_rgb", "_stroke_alpha")),
++                        (QWidget(), 0),
++                        _TR("ovlTextOpacity"),
++                        functools.partial(create_opacity_slider_generic, self, "stroke_color", "_stroke_rgb", "_stroke_alpha"),
++                    ],
++                    [
++                        _TR("ovlBackColor"),
++                        D_getcolorbutton(self, ovl.CONFIG, "_bg_rgb", callback=lambda _: update_color_with_opacity(self, "background_color", "_bg_rgb", "_bg_alpha")),
++                        (QWidget(), 0),
++                        _TR("ovlTextOpacity"),
++                        functools.partial(create_opacity_slider_generic, self, "background_color", "_bg_rgb", "_bg_alpha"),
++                    ],
++                    [
++                        _TR("ovlStrokeWidth"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(0, 10, ovl.CONFIG, "stroke_width", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlBoxExpansion"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(0, 50, ovl.CONFIG, "box_expansion", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlTextSizeMin"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(1, 100, ovl.CONFIG, "min_font_size", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlTextSizeMax"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(1, 200, ovl.CONFIG, "max_font_size", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlTextFont"),
++                        (QWidget(), 0),
++                        right_layout(create_font_combo, "", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlPaddingH"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(0, 50, ovl.CONFIG, "horizontal_padding", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlPaddingV"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(0, 50, ovl.CONFIG, "vertical_padding", double=True, step=0.5, callback=generic_save), "px", fixed_width=box_width),
++                    ],
++                    [
++                        _TR("ovlTimeout"),
++                        (QWidget(), 0),
++                        right_layout(D_getspinbox(100, 60000, ovl.CONFIG, "timeout_ms", callback=generic_save), "ms", fixed_width=box_width),
++                    ]
++                ]
++            )
++        ]
++    ]
+diff --git a/src/LunaTranslator/gui/setting/hotkey.py b/src/LunaTranslator/gui/setting/hotkey.py
+index fd6b7cdd..e9a7ab55 100644
+--- a/src/LunaTranslator/gui/setting/hotkey.py
++++ b/src/LunaTranslator/gui/setting/hotkey.py
+@@ -183,6 +183,21 @@ def _ocr_focus_switch_near():
+     gobject.base.translation_ui.startTranslater()
+ 
+ 
++def toggle_overlay():
++    import ovl
++    from gui.setting.display_overlay import save_overlay_config
++
++    ovl.load_config()
++    ovl.CONFIG["enable"] = 0 if ovl.CONFIG.get("enable", 1) else 1
++    save_overlay_config()
++
++
++def close_all_overlays():
++    import ovl
++
++    ovl.close_all()
++
++
+ def safesaveall():
+     _ = NativeUtils.SimpleCreateMutex("LUNASAVECONFIGUPDATE")
+     if windows.GetLastError() != windows.ERROR_ALREADY_EXISTS:
+@@ -247,6 +262,8 @@ def registrhotkeys(self):
+         "48": lambda: _ocr_focus_switch_near(),
+         "49": lambda: _ocr_focus_No(),
+         "50": safesaveall,
++        "_52": toggle_overlay,
++        "_53": close_all_overlays,
+         "51": lambda: gobject.base.translation_ui.changemousetransparentstate(1),
+     }
+ 
+@@ -280,7 +297,10 @@ hotkeys = [
+         ],
+     ],
+     ["HOOK", ["_11", "_12"]],
+-    ["OCR", ["_13", "_14", "_14_1", "_26", "_26_1", "46", "47", "48", "49"]],
++    [
++        "OCR",
++        ["_13", "_14", "_14_1", "_26", "_26_1", "_52", "_53", "46", "47", "48", "49"],
++    ],
+     ["剪贴板", ["36", "_4", "_28"]],
+     ["TTS", ["_32", "_7", "_7_1"]],
+     ["游戏", ["_10", "_15", "_21", "_22", "43", "41", "42"]],
+diff --git a/src/LunaTranslator/gui/translatorUI.py b/src/LunaTranslator/gui/translatorUI.py
+index 250a5bb4..df165415 100644
+--- a/src/LunaTranslator/gui/translatorUI.py
++++ b/src/LunaTranslator/gui/translatorUI.py
+@@ -615,7 +615,7 @@ class TranslatorWindow(resizableframeless):
+     def ocr_do_function(self, rect, img=None):
+         if not img:
+             img = imageCut(0, rect[0][0], rect[0][1], rect[1][0], rect[1][1])
+-        result = ocr_run(img)
++        result = ocr_run(img, (rect[0][0], rect[0][1]))
+         result = result.maybeerror()
+         if result:
+             gobject.base.textgetmethod(result, is_auto_run=False)
+diff --git a/src/LunaTranslator/myutils/config.py b/src/LunaTranslator/myutils/config.py
+index c6a94926..9f292b4e 100644
+--- a/src/LunaTranslator/myutils/config.py
++++ b/src/LunaTranslator/myutils/config.py
+@@ -402,12 +402,12 @@ def ___TR(k: str) -> str:
+     if "_" in k:
+         fnd = k.find("_")
+         return ___TR(k[:fnd]) + " " + ___TR(k[fnd + 1 :])
+-    if k.isascii():
+-        return k
+     loadlanguage()
+     __ = languageshow.get(k)
+     if __:
+         return __
++    if k.isascii():
++        return k
+     languageshow[k] = ""
+     return k
+ 
+diff --git a/src/LunaTranslator/myutils/ocrutil.py b/src/LunaTranslator/myutils/ocrutil.py
+index 0bf41ea4..0fe95b9d 100644
+--- a/src/LunaTranslator/myutils/ocrutil.py
++++ b/src/LunaTranslator/myutils/ocrutil.py
+@@ -57,7 +57,7 @@ def __ocr_init():
+     _nowuseocr = use
+ 
+ 
+-def ocr_run(qimage: QImage):
++def ocr_run(qimage: QImage, offset=None):
+     gobject.base.setimage.emit(qimage)
+     if qimage.isNull():
+         return OCRResultParsed()
+@@ -66,7 +66,7 @@ def ocr_run(qimage: QImage):
+     try:
+         ocr_init()
+         thisocrtype: str = _ocrengine.typename
+-        res = _ocrengine._private_ocr(qimage)
++        res = _ocrengine._private_ocr(qimage, offset)
+         gobject.base.setresult.emit(res)
+         return res
+     except Exception as e:
+diff --git a/src/LunaTranslator/ocrengines/SnippingTool.py b/src/LunaTranslator/ocrengines/SnippingTool.py
+index cdc4f1b5..63fc35ee 100644
+--- a/src/LunaTranslator/ocrengines/SnippingTool.py
++++ b/src/LunaTranslator/ocrengines/SnippingTool.py
+@@ -236,6 +236,15 @@ class OcrLineBoundingBox(Structure):
+ 
+ #   if ( (unsigned int)(a2[1] - 50) > 0x26DE || (unsigned int)(a2[2] - 50) > 0x26DE )
+ #     return 3i64;
++class SnippingOCRResult(OCRResult):
++    def parse(self, space, scale):
++        if not self:
++            return
++        if self.blocks and scale != 1:
++            for block in self.blocks:
++                block.box = tuple(_ / scale for _ in block.box)
++
++
+ class OCR(baseocr):
+     required_image_format = QImage
+     required_mini_height = 50
+@@ -289,6 +298,10 @@ class OCR(baseocr):
+             windows.WriteFile(self.hPipe, bytes(img_struct))
+             cnt = c_longlong.from_buffer_copy(windows.ReadFile(self.hPipe, 8)).value
+ 
++            import logging
++
++            logging.info(f"SnippingTool OCR: raw count from pipe = {cnt}")
++
+             if not cnt:
+                 return
+             boxs = []
+@@ -297,10 +310,23 @@ class OCR(baseocr):
+                 size = c_int.from_buffer_copy(windows.ReadFile(self.hPipe, 4)).value
+                 if not size:
+                     continue
+-                texts.append(windows.ReadFile(self.hPipe, size).decode())
++                text = windows.ReadFile(self.hPipe, size).decode()
+                 box = OcrLineBoundingBox.from_buffer_copy(
+                     windows.ReadFile(self.hPipe, 32)
+                 )
+-                box = (box.x1, box.y1, box.x2, box.y2, box.x3, box.y3, box.x4, box.y4)
+-                boxs.append(box)
+-            return OCRResult(boxs=boxs, texts=texts)
++                box_coords = (
++                    float(box.x1),
++                    float(box.y1),
++                    float(box.x2),
++                    float(box.y2),
++                    float(box.x3),
++                    float(box.y3),
++                    float(box.x4),
++                    float(box.y4),
++                )
++
++                texts.append(text)
++                boxs.append(box_coords)
++
++            logging.info(f"SnippingTool OCR: parsed {len(boxs)} blocks")
++            return SnippingOCRResult(boxs=boxs, texts=texts)
+diff --git a/src/LunaTranslator/ocrengines/baseocrclass.py b/src/LunaTranslator/ocrengines/baseocrclass.py
+index 3e42f12e..3feede4e 100644
+--- a/src/LunaTranslator/ocrengines/baseocrclass.py
++++ b/src/LunaTranslator/ocrengines/baseocrclass.py
+@@ -6,8 +6,7 @@ import re, gobject, math, time
+ from qtsymbols import *
+ 
+ 
+-def _sort_text_lines(boxs, texts, vertical, space: str):
+-
++def _group_text_lines(boxs, texts, vertical):
+     mids = [((box[0] + box[2]) / 2, (box[1] + box[3]) / 2) for box in boxs]
+     ranges = [((box[0], box[2]), (box[1], box[3])) for box in boxs]
+     juhe: "list[list]" = []
+@@ -26,6 +25,7 @@ def _sort_text_lines(boxs, texts, vertical, space: str):
+                 and mids[i][mids_idx] < ranges[j][mids_idx][1]
+                 and mids[j][mids_idx] > ranges[i][mids_idx][0]
+                 and mids[j][mids_idx] < ranges[i][mids_idx][1]
++                and abs(mids[i][1 - mids_idx] - mids[j][1 - mids_idx]) < 20
+             ):
+                 passed.append(j)
+                 ls.append(j)
+@@ -34,6 +34,11 @@ def _sort_text_lines(boxs, texts, vertical, space: str):
+     for i in range(len(juhe)):
+         juhe[i].sort(key=lambda x: mids[x][1 - mids_idx])
+     juhe.sort(key=lambda x: mids[x[0]][mids_idx], reverse=vertical)
++    return juhe
++
++
++def _sort_text_lines(boxs, texts, vertical, space: str):
++    juhe = _group_text_lines(boxs, texts, vertical)
+     lines = []
+     for _j in juhe:
+         lines.append(space.join([texts[_] for _ in _j]))
+@@ -319,7 +324,9 @@ class OCRResultParsed:
+         engine=None,
+         scale=1,
+         timecost=None,
++        offset=(0, 0),
+     ):
++        self.offset = offset
+         self.timecost = timecost
+         self.engine = engine
+         self.error = error
+@@ -334,17 +341,69 @@ class OCRResultParsed:
+     def textonly(self):
+         if not self.result:
+             return ""
++
++        is_snipping = False
++        try:
++            if type(self.result).__name__ == "SnippingOCRResult":
++                is_snipping = True
++            else:
++                from ocrengines.SnippingTool import SnippingOCRResult
++
++                if isinstance(self.result, SnippingOCRResult):
++                    is_snipping = True
++        except:
++            pass
++
++        import logging
++
++        logging.info(
++            f"OCRResultParsed: result type={type(self.result).__name__}, is_snipping={is_snipping}, blocks={len(self.result.blocks) if self.result else 0}"
++        )
++
++        should_group = (not is_snipping) and globalconfig.get("ocrmergelines", True)
++
+         if not self.result.hasboxs:
+             textonly = "\n".join((_.text for _ in self.result.blocks))
+-        else:
+-            textonly = "\n".join(
+-                _sort_text_lines(
+-                    list(_.box4 for _ in self.result.blocks),
+-                    list(_.text for _ in self.result.blocks),
+-                    self.result.vertical,
+-                    self.space,
++        elif not should_group:
++            lines = []
++            sorted_blocks = sorted(self.result.blocks, key=lambda b: b.box4[1])
++            for block in sorted_blocks:
++                box = block.box4
++                x1 = box[0] + self.offset[0]
++                y1 = box[1] + self.offset[1]
++                w = box[2] - box[0]
++                h = box[3] - box[1]
++                lines.append(
++                    "[{:.0f} {:.0f}|{:.0f} {:.0f}] {}".format(
++                        x1, y1, w, h, block.text
++                    )
+                 )
++            textonly = "\n".join(lines)
++        else:
++            juhe = _group_text_lines(
++                list(_.box4 for _ in self.result.blocks),
++                list(_.text for _ in self.result.blocks),
++                self.result.vertical,
+             )
++            lines = []
++            boxs = list(_.box4 for _ in self.result.blocks)
++            texts = list(_.text for _ in self.result.blocks)
++            for _j in juhe:
++                line_box = boxs[_j[0]]
++                for idx in _j[1:]:
++                    line_box = _OCRBlockS.four_point_box_union(line_box, boxs[idx])
++
++                x1 = line_box[0] + self.offset[0]
++                y1 = line_box[1] + self.offset[1]
++                w = line_box[2] - line_box[0]
++                h = line_box[3] - line_box[1]
++
++                text = self.space.join([texts[_] for _ in _j])
++                lines.append("[{:.0f} {:.0f}|{:.0f} {:.0f}] {}".format(x1, y1, w, h, text))
++
++            textonly = "\n".join(lines)
++
++        logging.info(f"OCRResultParsed: final textonly length={len(textonly)}")
+         if self.result.isocrtranslate:
+             return textonly
+         return self._100_f(textonly)
+@@ -401,7 +460,7 @@ class baseocr(commonbase):
+             raise e
+         self.needinit = False
+ 
+-    def _private_ocr(self, qimage: QImage):
++    def _private_ocr(self, qimage: QImage, offset=None):
+         if self.needinit:
+             self.level2init()
+         try:
+@@ -432,6 +491,7 @@ class baseocr(commonbase):
+             if not image:
+                 return OCRResultParsed()
+             t = time.time()
++            self.offset = offset or (0, 0)
+             result = self.multiapikeywrapper(self.ocr)(image)
+             return OCRResultParsed(
+                 result,
+@@ -439,6 +499,7 @@ class baseocr(commonbase):
+                 engine=self.typename,
+                 scale=scale,
+                 timecost=time.time() - t,
++                offset=self.offset,
+             )
+         except Exception as e:
+             self.needinit = True
+diff --git a/src/LunaTranslator/ovl.py b/src/LunaTranslator/ovl.py
+new file mode 100644
+index 00000000..ac60bb62
+--- /dev/null
++++ b/src/LunaTranslator/ovl.py
+@@ -0,0 +1,387 @@
++from __future__ import annotations
++
++import argparse
++import ctypes
++import json
++import logging
++import re
++#import signal
++import sys
++from pathlib import Path
++from dataclasses import dataclass
++from typing import List, Sequence
++
++from PyQt5.QtCore import Qt, QRect, QTimer
++from PyQt5.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
++from PyQt5.QtWidgets import QApplication, QLabel, QWidget
++
++_overlays = []
++
++# Default configuration
++CONFIG = {
++	"enable": 1,
++	"text_color": "white",
++	"stroke_color": "black",
++	"stroke_width": 3,
++	"min_font_size": 5,
++	"max_font_size": 48,
++	"font_family": "",
++	"background_color": "rgba(0, 0, 0, 180)",
++	"box_expansion": 6,
++	"timeout_ms": 10000,
++	"horizontal_padding": 4,
++	"vertical_padding": 4
++}
++
++def load_config():
++	global CONFIG
++	try:
++		# Try to find the config file relative to the script or current working directory
++		config_path = Path("userconfig/overlay.json")
++		if not config_path.exists():
++			# Fallback to looking relative to this file if run from elsewhere
++			config_path = Path(__file__).parent.parent / "userconfig" / "overlay.json"
++		
++		if config_path.exists():
++			with open(config_path, "r", encoding="utf-8") as f:
++				user_config = json.load(f)
++				CONFIG.update(user_config)
++			logging.info(f"Loaded overlay config from {config_path}")
++		else:
++			logging.warning("Overlay config file not found, using defaults")
++	except Exception as e:
++		logging.error(f"Error loading overlay config: {e}")
++
++def parse_color(color_str: str) -> QColor:
++	color_str = str(color_str).strip().lower()
++	if color_str.startswith("rgba"):
++		try:
++			content = color_str[color_str.find('(')+1 : color_str.rfind(')')]
++			parts = [x.strip() for x in content.split(',')]
++			if len(parts) == 4:
++				r = int(parts[0])
++				g = int(parts[1])
++				b = int(parts[2])
++				a_str = parts[3]
++				if '.' in a_str:
++					a = int(float(a_str) * 255)
++				else:
++					a = int(a_str)
++				return QColor(r, g, b, a)
++		except Exception as e:
++			logging.warning(f"Error parsing rgba color '{color_str}': {e}")
++	return QColor(color_str)
++
++BOX_PATTERN = re.compile(
++	r"\[(?P<x>\d+)\s+(?P<y>\d+)\|(?P<w>\d+)\s+(?P<h>\d+)\]\s*(?P<text>.*?)(?=\[\d+\s+\d+\|\d+\s+\d+\]|$)",
++	re.DOTALL,
++)
++
++def clean_text(text: str) -> str:
++	text = re.sub(r"\[Engine\].*?(\n|$)", "", text)
++	return text.strip()
++
++
++SAMPLE_DATA = """
++[1330 588|243 29]  Line 1
++[1330 655|388 27]  Line 2
++[1330 703|406 27]  Line 3
++""".strip()
++
++
++@dataclass
++class TextBox:
++	x: float
++	y: float
++	width: float
++	height: float
++	text: str
++
++
++def parse_boxes(text: str) -> List[TextBox]:
++	boxes: List[TextBox] = []
++	# Remove the header line if present before parsing boxes
++	text = re.sub(r"^\[Engine\].*?(\n|$)", "", text.strip())
++	
++	for match in BOX_PATTERN.finditer(text):
++		raw_text = match.group("text")
++		cleaned_text = clean_text(raw_text)
++		if not cleaned_text:
++			continue
++			
++		boxes.append(
++			TextBox(
++				x=int(match.group("x")),
++				y=int(match.group("y")),
++				width=int(match.group("w")),
++				height=int(match.group("h")),
++				text=cleaned_text,
++			)
++		)
++	return boxes
++
++class StrokedLabel(QLabel):
++	def __init__(self, *args, **kwargs):
++		super().__init__(*args, **kwargs)
++		self.stroke_color = parse_color(CONFIG["stroke_color"])
++		self.stroke_width = CONFIG["stroke_width"]
++		self.text_color = parse_color(CONFIG["text_color"])
++		self.bg_color = parse_color(CONFIG["background_color"])
++
++	def paintEvent(self, event):
++		painter = QPainter(self)
++		painter.setRenderHint(QPainter.Antialiasing)
++
++		# Draw background
++		rect = self.rect()
++		painter.setPen(Qt.NoPen)
++		painter.setBrush(self.bg_color)
++		painter.drawRoundedRect(rect, 4, 4)
++
++		text = self.text()
++		if not text:
++			return
++
++		font = self.font()
++		if CONFIG["font_family"]:
++			font.setFamily(CONFIG["font_family"])
++		painter.setFont(font)
++		metrics = QFontMetrics(font)
++		
++		# Manual vertical centering to ensure equal top/bottom padding
++		# regardless of the specific characters in the text
++		text_height = metrics.ascent() + metrics.descent()
++		y = rect.top() + (rect.height() - text_height) / 2 + metrics.ascent()
++		
++		# Horizontal padding
++		x = rect.left() + CONFIG["horizontal_padding"] / 2
++		
++		path = QPainterPath()
++		path.addText(x, y, font, text)
++		
++		# Draw stroke
++		painter.setPen(QPen(self.stroke_color, self.stroke_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
++		painter.setBrush(Qt.NoBrush)
++		painter.drawPath(path)
++		
++		# Draw fill
++		painter.setPen(Qt.NoPen)
++		painter.setBrush(self.text_color)
++		painter.drawPath(path)
++
++
++class Overlay(QWidget):
++	def __init__(self, boxes: Sequence[TextBox]):
++		super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
++		self.setAttribute(Qt.WA_TranslucentBackground)
++		self.setAttribute(Qt.WA_TransparentForMouseEvents)
++		self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
++		self.setWindowFlag(Qt.Tool, True)
++		# Qt>=5.10 provides WindowTransparentForInput; guard for older builds.
++		if hasattr(Qt, "WindowTransparentForInput"):
++			self.setWindowFlag(Qt.WindowTransparentForInput, True)
++
++		try:
++			# WDA_EXCLUDEFROMCAPTURE = 0x00000011
++			ctypes.windll.user32.SetWindowDisplayAffinity(int(self.winId()), 0x00000011)
++		except Exception as e:
++			logging.warning(f"Failed to set window display affinity: {e}")
++
++		screen = QApplication.primaryScreen()
++		rect = screen.geometry()
++		dpr = screen.devicePixelRatio()
++		logging.debug(f"Screen geometry: {rect}, DPR: {dpr}")
++		self.setGeometry(rect)
++		self.boxes = boxes
++		self.labels: List[QLabel] = []
++		box_expansion = CONFIG["box_expansion"]
++		for i, box in enumerate(boxes):
++			scaled_box = TextBox(
++				x=int(box.x / dpr) - box_expansion / 2,
++				y=int(box.y / dpr) - box_expansion / 2,
++				width=int(box.width / dpr) + box_expansion,
++				height=int(box.height / dpr) + box_expansion,
++				text=box.text,
++			)
++			logging.debug(f"Creating label {i} for box: {box} (scaled: {scaled_box})")
++			self.labels.append(self._create_label(scaled_box))
++		
++		self.timer = QTimer(self)
++		self.timer.setSingleShot(True)
++		self.timer.timeout.connect(self.close)
++		self.timer.start(CONFIG["timeout_ms"])
++		_overlays.append(self)
++
++	def update_content(self, boxes: Sequence[TextBox]):
++		self.timer.start(CONFIG["timeout_ms"])
++		
++		# Check if content is effectively the same (ignoring small jitter)
++		if len(self.boxes) == len(boxes):
++			same_content = True
++			for b1, b2 in zip(self.boxes, boxes):
++				if b1.text != b2.text:
++					same_content = False
++					break
++				if (abs(b1.x - b2.x) > 5 or abs(b1.y - b2.y) > 5 or 
++					abs(b1.width - b2.width) > 5 or abs(b1.height - b2.height) > 5):
++					same_content = False
++					break
++			if same_content:
++				return
++
++		self.boxes = boxes
++		
++		# Clear existing labels
++		for label in self.labels:
++			label.deleteLater()
++		self.labels.clear()
++		
++		screen = QApplication.primaryScreen()
++		dpr = screen.devicePixelRatio()
++		box_expansion = CONFIG["box_expansion"]
++		
++		for i, box in enumerate(boxes):
++			scaled_box = TextBox(
++				x=int(box.x / dpr) - box_expansion / 2,
++				y=int(box.y / dpr) - box_expansion / 2,
++				width=int(box.width / dpr) + box_expansion,
++				height=int(box.height / dpr) + box_expansion,
++				text=box.text,
++			)
++			self.labels.append(self._create_label(scaled_box))
++		
++		self.show()
++
++	def closeEvent(self, event):
++		if self in _overlays:
++			_overlays.remove(self)
++		super().closeEvent(event)
++
++	def _create_label(self, box: TextBox) -> QLabel:
++		label = StrokedLabel(box.text, self)
++		label.setWordWrap(False)
++		label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
++		# Background is drawn in paintEvent
++		label.setAttribute(Qt.WA_TransparentForMouseEvents)
++		
++		font = QFont(label.font())
++		if CONFIG["font_family"]:
++			font.setFamily(CONFIG["font_family"])
++			
++		min_font_px = CONFIG["min_font_size"]
++		max_font_px = CONFIG["max_font_size"]
++		vertical_padding = CONFIG["vertical_padding"]
++		horizontal_padding = CONFIG["horizontal_padding"]
++		
++		base_height = max(box.height - vertical_padding, min_font_px)
++		pixel_size = int(min(max_font_px, base_height))
++		font.setPixelSize(pixel_size)
++		
++		target_width = max(1, box.width - horizontal_padding)
++		target_height = max(1, box.height - vertical_padding)
++		metrics = QFontMetrics(font)
++		
++		while pixel_size > min_font_px:
++			# Use width() (advance width) which is safer for layout than boundingRect().width()
++			if metrics.width(box.text) <= target_width and metrics.height() <= target_height:
++				break
++			pixel_size -= 1
++			font.setPixelSize(pixel_size)
++			metrics = QFontMetrics(font)
++			
++		label.setFont(font)
++		label.setGeometry(QRect(int(box.x), int(box.y), int(box.width), int(box.height)))
++		label.show()
++		return label
++
++
++def load_from_file(path: str) -> str:
++	with open(path, "r", encoding="utf-8") as handle:
++		return handle.read()
++
++
++def close_all():
++	for o in _overlays[:]:
++		o.close()
++
++
++def show_overlay(data: str) -> int:
++	load_config()
++	
++	if not CONFIG.get("enable", 1):
++		logging.info("Overlay disabled in config.")
++		return 0
++
++	if not logging.getLogger().hasHandlers():
++		logging.basicConfig(
++			level=logging.DEBUG,
++			format="%(asctime)s [%(levelname)s] %(message)s",
++			datefmt="%H:%M:%S",
++		)
++
++	logging.debug(f"Data loaded (length={len(data)}): {data[:100]}...")
++
++	boxes = parse_boxes(data)
++	if not boxes:
++		logging.warning("No valid boxes to render.")
++		print("No valid boxes to render.")
++		return 1
++	
++	logging.info(f"Parsed {len(boxes)} boxes")
++
++	app = QApplication.instance()
++	run_loop = False
++	if app is None:
++		app = QApplication(sys.argv)
++		run_loop = True
++
++	# Reuse existing overlay if possible
++	if _overlays:
++		ovl = _overlays[0]
++		ovl.update_content(boxes)
++	else:
++		#signal.signal(signal.SIGINT, signal.SIG_DFL)
++		QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
++		overlay = Overlay(boxes)
++		overlay.show()
++	
++	if run_loop:
++		return app.exec_()
++	return 0
++
++
++def main(argv: Sequence[str]) -> int:
++	logging.basicConfig(
++		level=logging.DEBUG,
++		format="%(asctime)s [%(levelname)s] %(message)s",
++		datefmt="%H:%M:%S",
++	)
++	logging.info("Application started")
++
++	parser = argparse.ArgumentParser(description="Display OCR boxes on screen")
++	parser.add_argument("--data-file", dest="data_file")
++	parser.add_argument("--from-string", dest="data_string")
++	args = parser.parse_args(argv)
++	logging.debug(f"Arguments parsed: {args}")
++
++	data: str
++	if args.data_file:
++		logging.info(f"Loading data from file: {args.data_file}")
++		data = load_from_file(args.data_file)
++	elif args.data_string:
++		logging.info("Loading data from string argument")
++		data = args.data_string
++	else:
++		default_path = Path(__file__).with_name("text.txt")
++		if default_path.exists():
++			logging.info(f"Loading data from default file: {default_path}")
++			data = load_from_file(str(default_path))
++		else:
++			logging.info("Loading sample data")
++			data = SAMPLE_DATA
++
++	return show_overlay(data)
++
++
++if __name__ == "__main__":
++	sys.exit(main(sys.argv[1:]))
+diff --git a/src/LunaTranslator/textio/textsource/ocrtext.py b/src/LunaTranslator/textio/textsource/ocrtext.py
+index f687d2fb..217cee75 100644
+--- a/src/LunaTranslator/textio/textsource/ocrtext.py
++++ b/src/LunaTranslator/textio/textsource/ocrtext.py
+@@ -65,7 +65,7 @@ class rangemanger:
+         )
+         if imgr.isNull():
+             return
+-        result = ocr_run(imgr)
++        result = ocr_run(imgr, (rect[0][0], rect[0][1]))
+         self.savelastimg = cvMat.fromQImage(imgr)
+         self.savelastrecimg = self.savelastimg
+         self.lastocrtime = time.time()
+@@ -106,7 +106,7 @@ class rangemanger:
+                 ok = False
+         if ok == False:
+             return
+-        result = ocr_run(imgr)
++        result = ocr_run(imgr, (rect[0][0], rect[0][1]))
+         t = result.textonly
+         self.lastocrtime = time.time()
+         sim = NativeUtils.distance(self.savelasttext, t)
+diff --git a/src/files/lang/ar.json b/src/files/lang/ar.json
+index 7b35cae2..384652da 100644
+--- a/src/files/lang/ar.json
++++ b/src/files/lang/ar.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "التفرقة بين الأحرف الكبيرة والصغيرة",
+     "自动录音": "التسجيل التلقائي",
+     "收藏夹": "المفضلة",
+-    "更多……": "المزيد..."
++    "更多……": "المزيد...",
++    "OverlaySetting": "إعدادات التراكب",
++    "ovlEnable": "تفعيل التراكب",
++    "ovlTextColor": "لون النص",
++    "ovlTextOpacity": "الشفافية",
++    "ovlStrokeColor": "لون الحد",
++    "ovlBackColor": "لون الخلفية",
++    "ovlStrokeWidth": "عرض الحد",
++    "ovlBoxExpansion": "توسيع الإطار",
++    "ovlTextSizeMin": "أصغر حجم خط",
++    "ovlTextSizeMax": "أكبر حجم خط",
++    "ovlTextFont": "الخط",
++    "ovlPaddingH": "حشو أفقي",
++    "ovlPaddingV": "حشو عمودي",
++    "ovlTimeout": "مدة العرض",
++    "开关": "تبديل",
++    "关闭所有": "إغلاق الكل"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/cht.json b/src/files/lang/cht.json
+index dece6598..de80e188 100644
+--- a/src/files/lang/cht.json
++++ b/src/files/lang/cht.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "區分大小寫",
+     "自动录音": "自動錄音",
+     "更多……": "更多……",
+-    "收藏夹": "收藏清單"
++    "收藏夹": "收藏清單",
++    "OverlaySetting": "Overlay設定",
++    "ovlEnable": "啟用Overlay",
++    "ovlTextColor": "文字顏色",
++    "ovlTextOpacity": "透明度",
++    "ovlStrokeColor": "描邊顏色",
++    "ovlBackColor": "背景顏色",
++    "ovlStrokeWidth": "描邊寬度",
++    "ovlBoxExpansion": "框擴展",
++    "ovlTextSizeMin": "最小字體大小",
++    "ovlTextSizeMax": "最大字體大小",
++    "ovlTextFont": "字體",
++    "ovlPaddingH": "水平內邊距",
++    "ovlPaddingV": "垂直內邊距",
++    "ovlTimeout": "顯示時長",
++    "开关": "開關",
++    "关闭所有": "全部關閉"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/cs.json b/src/files/lang/cs.json
+index 72ce0aea..0ba16bd1 100644
+--- a/src/files/lang/cs.json
++++ b/src/files/lang/cs.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Rozlišovat velká a malá písmena",
+     "自动录音": "Automatický záznam",
+     "更多……": "Více...",
+-    "收藏夹": "Záložky"
++    "收藏夹": "Záložky",
++    "OverlaySetting": "Nastavení overlaye",
++    "ovlEnable": "Povolit overlay",
++    "ovlTextColor": "Barva textu",
++    "ovlTextOpacity": "Průhlednost",
++    "ovlStrokeColor": "Barva obrysu",
++    "ovlBackColor": "Barva pozadí",
++    "ovlStrokeWidth": "Tloušťka obrysu",
++    "ovlBoxExpansion": "Rozšíření rámečku",
++    "ovlTextSizeMin": "Min. velikost písma",
++    "ovlTextSizeMax": "Max. velikost písma",
++    "ovlTextFont": "Písmo",
++    "ovlPaddingH": "Vodorovné odsazení",
++    "ovlPaddingV": "Svislé odsazení",
++    "ovlTimeout": "Doba zobrazení",
++    "开关": "Přepnout",
++    "关闭所有": "Zavřít vše"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/de.json b/src/files/lang/de.json
+index 21e44330..bdfabeda 100644
+--- a/src/files/lang/de.json
++++ b/src/files/lang/de.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Groß-/Kleinschreibung beachten",
+     "自动录音": "Automatische Aufnahme",
+     "更多……": "Mehr...",
+-    "收藏夹": "Lesezeichen"
++    "收藏夹": "Lesezeichen",
++    "OverlaySetting": "Overlay-Einstellungen",
++    "ovlEnable": "Overlay aktivieren",
++    "ovlTextColor": "Textfarbe",
++    "ovlTextOpacity": "Deckkraft",
++    "ovlStrokeColor": "Konturfarbe",
++    "ovlBackColor": "Hintergrundfarbe",
++    "ovlStrokeWidth": "Konturstärke",
++    "ovlBoxExpansion": "Box-Erweiterung",
++    "ovlTextSizeMin": "Min. Schriftgröße",
++    "ovlTextSizeMax": "Max. Schriftgröße",
++    "ovlTextFont": "Schriftart",
++    "ovlPaddingH": "Horizontaler Abstand",
++    "ovlPaddingV": "Vertikaler Abstand",
++    "ovlTimeout": "Anzeigedauer",
++    "开关": "Umschalten",
++    "关闭所有": "Alle schließen"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/en.json b/src/files/lang/en.json
+index fe4545b6..7dfbb2bc 100644
+--- a/src/files/lang/en.json
++++ b/src/files/lang/en.json
+@@ -1,4 +1,20 @@
+ {
++    "OverlaySetting": "Overlay Settings",
++    "ovlEnable": "Enable Overlay",
++    "ovlTextColor": "Text Color",
++    "ovlStrokeColor": "Stroke Color",
++    "ovlBackColor": "Background Color",
++    "ovlStrokeWidth": "Stroke Width",
++    "ovlBoxExpansion": "Box Expansion",
++    "ovlTextSizeMin": "Min Font Size",
++    "ovlTextSizeMax": "Max Font Size",
++    "ovlTextOpacity": "Opacity",
++    "ovlTextFont": "Font Family",
++    "ovlPaddingH": "Horizontal Padding",
++    "ovlPaddingV": "Vertical Padding",
++    "ovlTimeout": "Overlay Timeout",
++    "开关": "Toggle",
++    "关闭所有": "Close All",
+     "获取中": "Retrieving",
+     "获取失败": "Retrieval Failed",
+     "查词": "Look Up Word",
+diff --git a/src/files/lang/es.json b/src/files/lang/es.json
+index 4d5bbbff..57033662 100644
+--- a/src/files/lang/es.json
++++ b/src/files/lang/es.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Distinción entre mayúsculas y minúsculas",
+     "自动录音": "Grabación automática",
+     "更多……": "Más...",
+-    "收藏夹": "Favoritos"
++    "收藏夹": "Favoritos",
++    "OverlaySetting": "Configuración de overlay",
++    "ovlEnable": "Activar overlay",
++    "ovlTextColor": "Color de texto",
++    "ovlTextOpacity": "Opacidad",
++    "ovlStrokeColor": "Color del contorno",
++    "ovlBackColor": "Color de fondo",
++    "ovlStrokeWidth": "Grosor del contorno",
++    "ovlBoxExpansion": "Expansión del cuadro",
++    "ovlTextSizeMin": "Tamaño mínimo de fuente",
++    "ovlTextSizeMax": "Tamaño máximo de fuente",
++    "ovlTextFont": "Fuente",
++    "ovlPaddingH": "Relleno horizontal",
++    "ovlPaddingV": "Relleno vertical",
++    "ovlTimeout": "Tiempo de visualización",
++    "开关": "Alternar",
++    "关闭所有": "Cerrar todo"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/fr.json b/src/files/lang/fr.json
+index 78ea0e07..e9dd803c 100644
+--- a/src/files/lang/fr.json
++++ b/src/files/lang/fr.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Sensible à la casse",
+     "自动录音": "Enregistrement automatique",
+     "更多……": "Plus...",
+-    "收藏夹": "Favoris"
++    "收藏夹": "Favoris",
++    "OverlaySetting": "Paramètres d'overlay",
++    "ovlEnable": "Activer l'overlay",
++    "ovlTextColor": "Couleur du texte",
++    "ovlTextOpacity": "Opacité",
++    "ovlStrokeColor": "Couleur du contour",
++    "ovlBackColor": "Couleur d'arrière-plan",
++    "ovlStrokeWidth": "Épaisseur du contour",
++    "ovlBoxExpansion": "Extension de cadre",
++    "ovlTextSizeMin": "Taille min. de police",
++    "ovlTextSizeMax": "Taille max. de police",
++    "ovlTextFont": "Police",
++    "ovlPaddingH": "Marge horizontale",
++    "ovlPaddingV": "Marge verticale",
++    "ovlTimeout": "Durée d'affichage",
++    "开关": "Basculer",
++    "关闭所有": "Tout fermer"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/it.json b/src/files/lang/it.json
+index 012932c3..209a8b6c 100644
+--- a/src/files/lang/it.json
++++ b/src/files/lang/it.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Distinzione tra maiuscole e minuscole",
+     "自动录音": "Registrazione automatica",
+     "更多……": "Di più...",
+-    "收藏夹": "Preferiti"
++    "收藏夹": "Preferiti",
++    "OverlaySetting": "Impostazioni overlay",
++    "ovlEnable": "Abilita overlay",
++    "ovlTextColor": "Colore testo",
++    "ovlTextOpacity": "Opacità",
++    "ovlStrokeColor": "Colore contorno",
++    "ovlBackColor": "Colore sfondo",
++    "ovlStrokeWidth": "Spessore contorno",
++    "ovlBoxExpansion": "Espansione riquadro",
++    "ovlTextSizeMin": "Dimensione minima font",
++    "ovlTextSizeMax": "Dimensione massima font",
++    "ovlTextFont": "Font",
++    "ovlPaddingH": "Padding orizzontale",
++    "ovlPaddingV": "Padding verticale",
++    "ovlTimeout": "Durata visualizzazione",
++    "开关": "Attiva/disattiva",
++    "关闭所有": "Chiudi tutto"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/ja.json b/src/files/lang/ja.json
+index 09c9d93c..bb4883f6 100644
+--- a/src/files/lang/ja.json
++++ b/src/files/lang/ja.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "大文字と小文字を区別する",
+     "自动录音": "自動録音",
+     "更多……": "もっと……",
+-    "收藏夹": "お気に入り"
++    "收藏夹": "お気に入り",
++    "OverlaySetting": "オーバーレイ設定",
++    "ovlEnable": "オーバーレイを有効化",
++    "ovlTextColor": "文字色",
++    "ovlTextOpacity": "不透明度",
++    "ovlStrokeColor": "縁取り色",
++    "ovlBackColor": "背景色",
++    "ovlStrokeWidth": "縁取り幅",
++    "ovlBoxExpansion": "ボックス拡張",
++    "ovlTextSizeMin": "最小フォントサイズ",
++    "ovlTextSizeMax": "最大フォントサイズ",
++    "ovlTextFont": "フォント",
++    "ovlPaddingH": "横余白",
++    "ovlPaddingV": "縦余白",
++    "ovlTimeout": "表示時間",
++    "开关": "切替",
++    "关闭所有": "すべて閉じる"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/ko.json b/src/files/lang/ko.json
+index 0c13beb3..d2b792a9 100644
+--- a/src/files/lang/ko.json
++++ b/src/files/lang/ko.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "대소문자 구분",
+     "自动录音": "자동 녹음",
+     "更多……": "더 많은...",
+-    "收藏夹": "즐겨찾기"
++    "收藏夹": "즐겨찾기",
++    "OverlaySetting": "오버레이 설정",
++    "ovlEnable": "오버레이 활성화",
++    "ovlTextColor": "텍스트 색상",
++    "ovlTextOpacity": "투명도",
++    "ovlStrokeColor": "외곽선 색상",
++    "ovlBackColor": "배경 색상",
++    "ovlStrokeWidth": "외곽선 두께",
++    "ovlBoxExpansion": "박스 확장",
++    "ovlTextSizeMin": "최소 글꼴 크기",
++    "ovlTextSizeMax": "최대 글꼴 크기",
++    "ovlTextFont": "글꼴",
++    "ovlPaddingH": "가로 여백",
++    "ovlPaddingV": "세로 여백",
++    "ovlTimeout": "표시 시간",
++    "开关": "전환",
++    "关闭所有": "모두 닫기"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/nl.json b/src/files/lang/nl.json
+index 64f84051..88910750 100644
+--- a/src/files/lang/nl.json
++++ b/src/files/lang/nl.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Hoofdlettergevoelig",
+     "自动录音": "Automatische opname",
+     "更多……": "Meer...",
+-    "收藏夹": "Favorieten"
++    "收藏夹": "Favorieten",
++    "OverlaySetting": "Overlay-instellingen",
++    "ovlEnable": "Overlay inschakelen",
++    "ovlTextColor": "Tekstkleur",
++    "ovlTextOpacity": "Dekking",
++    "ovlStrokeColor": "Randkleur",
++    "ovlBackColor": "Achtergrondkleur",
++    "ovlStrokeWidth": "Randdikte",
++    "ovlBoxExpansion": "Kaderuitbreiding",
++    "ovlTextSizeMin": "Min. lettergrootte",
++    "ovlTextSizeMax": "Max. lettergrootte",
++    "ovlTextFont": "Lettertype",
++    "ovlPaddingH": "Horizontale opvulling",
++    "ovlPaddingV": "Verticale opvulling",
++    "ovlTimeout": "Weergaveduur",
++    "开关": "Omschakelen",
++    "关闭所有": "Alles sluiten"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/pl.json b/src/files/lang/pl.json
+index e7f8f4ca..4dbd4bf4 100644
+--- a/src/files/lang/pl.json
++++ b/src/files/lang/pl.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Rozróżnianie wielkości liter",
+     "自动录音": "Automatyczne nagrywanie",
+     "更多……": "Więcej...",
+-    "收藏夹": "Zakładki"
++    "收藏夹": "Zakładki",
++    "OverlaySetting": "Ustawienia nakładki",
++    "ovlEnable": "Włącz nakładkę",
++    "ovlTextColor": "Kolor tekstu",
++    "ovlTextOpacity": "Przezroczystość",
++    "ovlStrokeColor": "Kolor obrysu",
++    "ovlBackColor": "Kolor tła",
++    "ovlStrokeWidth": "Grubość obrysu",
++    "ovlBoxExpansion": "Rozszerzenie ramki",
++    "ovlTextSizeMin": "Min. rozmiar czcionki",
++    "ovlTextSizeMax": "Maks. rozmiar czcionki",
++    "ovlTextFont": "Czcionka",
++    "ovlPaddingH": "Odstęp poziomy",
++    "ovlPaddingV": "Odstęp pionowy",
++    "ovlTimeout": "Czas wyświetlania",
++    "开关": "Przełącz",
++    "关闭所有": "Zamknij wszystko"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/pt-br.json b/src/files/lang/pt-br.json
+index c94b01f0..7e43298b 100644
+--- a/src/files/lang/pt-br.json
++++ b/src/files/lang/pt-br.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Diferenciar maiúsculas de minúsculas",
+     "自动录音": "Gravação automática",
+     "更多……": "Mais...",
+-    "收藏夹": "Favoritos"
++    "收藏夹": "Favoritos",
++    "OverlaySetting": "Configurações de overlay",
++    "ovlEnable": "Ativar overlay",
++    "ovlTextColor": "Cor do texto",
++    "ovlTextOpacity": "Opacidade",
++    "ovlStrokeColor": "Cor do contorno",
++    "ovlBackColor": "Cor de fundo",
++    "ovlStrokeWidth": "Largura do contorno",
++    "ovlBoxExpansion": "Expansão da caixa",
++    "ovlTextSizeMin": "Tamanho mínimo da fonte",
++    "ovlTextSizeMax": "Tamanho máximo da fonte",
++    "ovlTextFont": "Fonte",
++    "ovlPaddingH": "Preenchimento horizontal",
++    "ovlPaddingV": "Preenchimento vertical",
++    "ovlTimeout": "Tempo de exibição",
++    "开关": "Alternar",
++    "关闭所有": "Fechar tudo"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/pt.json b/src/files/lang/pt.json
+index cf201c4e..c66f6905 100644
+--- a/src/files/lang/pt.json
++++ b/src/files/lang/pt.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Diferenciar maiúsculas de minúsculas",
+     "自动录音": "Gravação automática",
+     "更多……": "Mais...",
+-    "收藏夹": "Favoritos"
++    "收藏夹": "Favoritos",
++    "OverlaySetting": "Configurações de overlay",
++    "ovlEnable": "Ativar overlay",
++    "ovlTextColor": "Cor do texto",
++    "ovlTextOpacity": "Opacidade",
++    "ovlStrokeColor": "Cor do contorno",
++    "ovlBackColor": "Cor de fundo",
++    "ovlStrokeWidth": "Largura do contorno",
++    "ovlBoxExpansion": "Expansão da caixa",
++    "ovlTextSizeMin": "Tamanho mínimo da fonte",
++    "ovlTextSizeMax": "Tamanho máximo da fonte",
++    "ovlTextFont": "Fonte",
++    "ovlPaddingH": "Preenchimento horizontal",
++    "ovlPaddingV": "Preenchimento vertical",
++    "ovlTimeout": "Tempo de exibição",
++    "开关": "Alternar",
++    "关闭所有": "Fechar tudo"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/ru.json b/src/files/lang/ru.json
+index ace896fd..8e7dd149 100644
+--- a/src/files/lang/ru.json
++++ b/src/files/lang/ru.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Чувствительность к регистру",
+     "自动录音": "Автоматическая запись",
+     "更多……": "Ещё…",
+-    "收藏夹": "Избранное"
++    "收藏夹": "Избранное",
++    "OverlaySetting": "Настройки оверлея",
++    "ovlEnable": "Включить оверлей",
++    "ovlTextColor": "Цвет текста",
++    "ovlTextOpacity": "Прозрачность",
++    "ovlStrokeColor": "Цвет обводки",
++    "ovlBackColor": "Цвет фона",
++    "ovlStrokeWidth": "Толщина обводки",
++    "ovlBoxExpansion": "Расширение рамки",
++    "ovlTextSizeMin": "Мин. размер шрифта",
++    "ovlTextSizeMax": "Макс. размер шрифта",
++    "ovlTextFont": "Шрифт",
++    "ovlPaddingH": "Горизонтальный отступ",
++    "ovlPaddingV": "Вертикальный отступ",
++    "ovlTimeout": "Время показа",
++    "开关": "Переключить",
++    "关闭所有": "Закрыть все"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/sv.json b/src/files/lang/sv.json
+index 0bc152d1..1f67ca89 100644
+--- a/src/files/lang/sv.json
++++ b/src/files/lang/sv.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Skiftlägeskänslig",
+     "自动录音": "Automatisk inspelning",
+     "更多……": "Mer...",
+-    "收藏夹": "Favoriter"
++    "收藏夹": "Favoriter",
++    "OverlaySetting": "Overlay-inställningar",
++    "ovlEnable": "Aktivera overlay",
++    "ovlTextColor": "Textfärg",
++    "ovlTextOpacity": "Opacitet",
++    "ovlStrokeColor": "Konturfärg",
++    "ovlBackColor": "Bakgrundsfärg",
++    "ovlStrokeWidth": "Konturtjocklek",
++    "ovlBoxExpansion": "Rutaexpansion",
++    "ovlTextSizeMin": "Minsta teckenstorlek",
++    "ovlTextSizeMax": "Största teckenstorlek",
++    "ovlTextFont": "Typsnitt",
++    "ovlPaddingH": "Horisontell utfyllnad",
++    "ovlPaddingV": "Vertikal utfyllnad",
++    "ovlTimeout": "Visningstid",
++    "开关": "Växla",
++    "关闭所有": "Stäng alla"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/th.json b/src/files/lang/th.json
+index 7b9ba072..194f182d 100644
+--- a/src/files/lang/th.json
++++ b/src/files/lang/th.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Case sensitive",
+     "自动录音": "บันทึกเสียงอัตโนมัติ",
+     "更多……": "เพิ่มเติม...",
+-    "收藏夹": "คอลเลกชัน"
++    "收藏夹": "คอลเลกชัน",
++    "OverlaySetting": "การตงคาโอเวอรเลย",
++    "ovlEnable": "เปดใชงานโอเวอรเลย",
++    "ovlTextColor": "สขอความ",
++    "ovlTextOpacity": "ความโปรงใส",
++    "ovlStrokeColor": "สเสนขอบ",
++    "ovlBackColor": "สพนหลง",
++    "ovlStrokeWidth": "ความหนาเสนขอบ",
++    "ovlBoxExpansion": "ขยายกรอบ",
++    "ovlTextSizeMin": "ขนาดตวอกษรตำสด",
++    "ovlTextSizeMax": "ขนาดตวอกษรสงสด",
++    "ovlTextFont": "แบบอกษร",
++    "ovlPaddingH": "ระยะขอบแนวนอน",
++    "ovlPaddingV": "ระยะขอบแนวตง",
++    "ovlTimeout": "เวลาแสดงผล",
++    "开关": "สลบ",
++    "关闭所有": "ปดทงหมด"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/tr.json b/src/files/lang/tr.json
+index 0e37178a..67ec5f53 100644
+--- a/src/files/lang/tr.json
++++ b/src/files/lang/tr.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Büyük/küçük harf duyarlı",
+     "自动录音": "Otomatik ses kaydı",
+     "更多……": "Daha fazla...",
+-    "收藏夹": "Sık Kullanılanlar"
++    "收藏夹": "Sık Kullanılanlar",
++    "OverlaySetting": "Overlay ayarları",
++    "ovlEnable": "Overlay'i etkinleştir",
++    "ovlTextColor": "Metin rengi",
++    "ovlTextOpacity": "Saydamlık",
++    "ovlStrokeColor": "Kenarlık rengi",
++    "ovlBackColor": "Arka plan rengi",
++    "ovlStrokeWidth": "Kenarlık kalınlığı",
++    "ovlBoxExpansion": "Kutu genişletme",
++    "ovlTextSizeMin": "Minimum yazı boyutu",
++    "ovlTextSizeMax": "Maksimum yazı boyutu",
++    "ovlTextFont": "Yazı tipi",
++    "ovlPaddingH": "Yatay dolgu",
++    "ovlPaddingV": "Dikey dolgu",
++    "ovlTimeout": "Gösterim süresi",
++    "开关": "Aç/Kapat",
++    "关闭所有": "Tümünü kapat"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/uk.json b/src/files/lang/uk.json
+index a30da4db..910aa534 100644
+--- a/src/files/lang/uk.json
++++ b/src/files/lang/uk.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "Чутливість до регістру",
+     "自动录音": "Автоматичний запис",
+     "更多……": "Більше...",
+-    "收藏夹": "Закладки"
++    "收藏夹": "Закладки",
++    "OverlaySetting": "Налаштування оверлею",
++    "ovlEnable": "Увімкнути оверлей",
++    "ovlTextColor": "Колір тексту",
++    "ovlTextOpacity": "Прозорість",
++    "ovlStrokeColor": "Колір обведення",
++    "ovlBackColor": "Колір фону",
++    "ovlStrokeWidth": "Товщина обведення",
++    "ovlBoxExpansion": "Розширення рамки",
++    "ovlTextSizeMin": "Мін. розмір шрифту",
++    "ovlTextSizeMax": "Макс. розмір шрифту",
++    "ovlTextFont": "Шрифт",
++    "ovlPaddingH": "Горизонтальний відступ",
++    "ovlPaddingV": "Вертикальний відступ",
++    "ovlTimeout": "Час показу",
++    "开关": "Перемкнути",
++    "关闭所有": "Закрити всі"
+ }
+\ No newline at end of file
+diff --git a/src/files/lang/vi.json b/src/files/lang/vi.json
+index 6a5831ec..bab6ba82 100644
+--- a/src/files/lang/vi.json
++++ b/src/files/lang/vi.json
+@@ -1,4 +1,20 @@
+ {
++    "OverlaySetting": "Cài đặt Overlay",
++    "ovlEnable": "Kích hoạt Overlay",
++    "ovlTextColor": "Màu văn bản",
++    "ovlStrokeColor": "Màu viền văn bản",
++    "ovlBackColor": "Màu nền",
++    "ovlStrokeWidth": "Độ rộng viền",
++    "ovlBoxExpansion": "Mở rộng khung hiển thị",
++    "ovlTextSizeMin": "Kích thước văn bản nhỏ nhất",
++    "ovlTextSizeMax": "Kích thước văn bản lớn nhất",
++    "ovlTextOpacity": "Độ trong suốt",
++    "ovlTextFont": "Phông chữ",
++    "ovlPaddingH": "Căn văn bản theo chiều ngang",
++    "ovlPaddingV": "Căn văn bản theo chiều dọc",
++    "ovlTimeout": "Thời gian tồn tại",
++    "开关": "Bật/tắt",
++    "关闭所有": "Đóng tất cả",
+     "搜索": "Tìm kiếm",
+     "小学馆": "Phòng nhỏ",
+     "灵格斯词典": "Từ điển Lingus",
+diff --git a/src/files/lang/zh.json b/src/files/lang/zh.json
+index 340f98c9..87cd8b94 100644
+--- a/src/files/lang/zh.json
++++ b/src/files/lang/zh.json
+@@ -930,5 +930,21 @@
+     "区分大小写": "",
+     "自动录音": "",
+     "更多……": "",
+-    "收藏夹": ""
++    "收藏夹": "",
++    "OverlaySetting": "Overlay设置",
++    "ovlEnable": "启用Overlay",
++    "ovlTextColor": "文字颜色",
++    "ovlTextOpacity": "透明度",
++    "ovlStrokeColor": "描边颜色",
++    "ovlBackColor": "背景颜色",
++    "ovlStrokeWidth": "描边宽度",
++    "ovlBoxExpansion": "框扩展",
++    "ovlTextSizeMin": "最小字体大小",
++    "ovlTextSizeMax": "最大字体大小",
++    "ovlTextFont": "字体",
++    "ovlPaddingH": "水平内边距",
++    "ovlPaddingV": "垂直内边距",
++    "ovlTimeout": "显示时长",
++    "开关": "开关",
++    "关闭所有": "关闭所有"
+ }
+\ No newline at end of file
