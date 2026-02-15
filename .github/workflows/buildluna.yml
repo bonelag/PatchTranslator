@@ -12,58 +12,34 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        include:  
-          - arch: x86
-            target: winxp
-          - arch: x86
-            target: win7
-            pythonversion: '3.7.9' 
-          - arch: x64
-            target: win7
-            pythonversion: '3.7.9' 
+        include:
           - arch: x64
             target: win10
-            pythonversion: '3.13.11'  
+            pythonversion: '3.13.11'
     steps:
       - uses: actions/checkout@v4
-      # - uses: microsoft/setup-msbuild@v2
-      - if: matrix.target == 'winxp'
-        run: |
-            Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
-            $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-            $componentsToAdd = @(
-              "Microsoft.VisualStudio.Component.WinXP"
-            )
-            [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
-            $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
-            $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
-            if ($process.ExitCode -eq 0)
-            {
-                Write-Host "components have been successfully added"
-                Get-ChildItem C:\ProgramData\Microsoft\VisualStudio\Packages\Microsoft.Windows.XPSupport.*
-            }
-            else
-            {
-                Write-Host "components were not installed"
-                exit 1
-            }
-      # - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
-      #   with:
-      #     sdk-version: 26100
-      - if: matrix.target != 'winxp'
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.pythonversion }}
           architecture: ${{ matrix.arch }}
-      - if: matrix.target != 'win10'
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.13.11
-          architecture: x64
+
+      - name: Generate app icon from logo.png
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip pillow
+          @'
+from PIL import Image
+src = r"src/files/static/logo.png"
+dst = r"src/NativeImpl/exec/luna.ico"
+im = Image.open(src).convert("RGBA")
+sizes = [(256,256),(128,128),(64,64),(48,48),(32,32),(24,24),(16,16)]
+im.save(dst, format="ICO", sizes=sizes)
+print(f"generated {dst}")
+'@ | python -
+
       - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py cpp ${{ matrix.arch }} ${{ matrix.target }}
       - run: C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py hook ${{ matrix.arch }} ${{ matrix.target }}
-      - if: matrix.target != 'winxp'
-        run:  C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py pyrt ${{ matrix.arch }} ${{ matrix.pythonversion }} ${{ matrix.target }}
+      - run:  C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py pyrt ${{ matrix.arch }} ${{ matrix.pythonversion }} ${{ matrix.target }}
       - run:  C:\hostedtoolcache\windows\Python\3.13.11\x64\python src/scripts/build_lunatranslator.py merge ${{ matrix.arch }} ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
