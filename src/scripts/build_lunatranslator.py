@@ -360,20 +360,22 @@ if __name__ == "__main__":
         x86dir = f"NativeImpl/builds/_x86_{target}"
 
         if os.path.exists(x64dir):
-            move_directory_contents(x64dir, "NativeImpl/builds")
-            os.makedirs("files/DLL64")
+            if not os.path.exists("files/DLL64"):
+                os.makedirs("files/DLL64")
             shareddllproxy64 = os.path.join(x64dir, "shareddllproxy64.exe")
             if os.path.exists(shareddllproxy64):
                 shutil.copy(shareddllproxy64, "files")
             os.system(f"robocopy {x64dir} files/DLL64 *.dll")
+            move_directory_contents(x64dir, "NativeImpl/builds")
 
         if os.path.exists(x86dir):
-            move_directory_contents(x86dir, "NativeImpl/builds")
-            os.makedirs("files/DLL32")
+            if not os.path.exists("files/DLL32"):
+                os.makedirs("files/DLL32")
             shareddllproxy32 = os.path.join(x86dir, "shareddllproxy32.exe")
             if os.path.exists(shareddllproxy32):
                 shutil.copy(shareddllproxy32, "files")
             os.system(f"robocopy {x86dir} files/DLL32 *.dll")
+            move_directory_contents(x86dir, "NativeImpl/builds")
 
         os.system(
             f"python {os.path.join(rootthisfiledir,'collectall.py')} {arch} {target}"
