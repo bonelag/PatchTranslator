@@ -26,7 +26,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-            path: build
+            name: signed
+            path: build/signed
+
+      - name: Verify win10 x64 package exists
+        shell: powershell
+        run: |
+          if (!(Test-Path "build/signed/LunaTranslator_x64_win10.zip")) {
+            throw "Missing build/signed/LunaTranslator_x64_win10.zip"
+          }
+
       - uses: softprops/action-gh-release@v2.2.2
         with:
           tag_name: ${{ needs.loadversion.outputs.version }}
@@ -34,4 +43,3 @@ jobs:
             build/signed/LunaTranslator_x64_win10.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: curl http://lunatranslator.org/${{ secrets.LUNA_UPDATE_NOTIFY }}
