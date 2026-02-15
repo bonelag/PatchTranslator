@@ -348,6 +348,14 @@ diff --git a/src/LunaTranslator/gui/translatorUI.py b/src/LunaTranslator/gui/tra
 index 250a5bb4..df165415 100644
 --- a/src/LunaTranslator/gui/translatorUI.py
 +++ b/src/LunaTranslator/gui/translatorUI.py
+@@ -2,6 +2,7 @@ from qtsymbols import *
+ import time, functools, threading, os, shutil, uuid
+ from traceback import print_exc
+ import windows, qtawesome, gobject, NativeUtils
++import ovl
+ from myutils.wrapper import threader, tryprint
+ from myutils.config import (
+      globalconfig,
 @@ -615,7 +615,7 @@ class TranslatorWindow(resizableframeless):
      def ocr_do_function(self, rect, img=None):
          if not img:
@@ -357,6 +365,23 @@ index 250a5bb4..df165415 100644
          result = result.maybeerror()
          if result:
              gobject.base.textgetmethod(result, is_auto_run=False)
+@@ -556,9 +557,16 @@ class TranslatorWindow(resizableframeless):
+           if text is None:
+                if clear:
+                     self.translate_text.clear()
+                return
+           if not is_auto_run:
+-            if not gobject.base.transhis.isVisible():
++            # If overlay is enabled and user has minimized/hidden the translator
++            # window manually, keep it hidden for one-shot OCR/translate hotkeys.
++            hidden_by_user = (globalconfig["showintab"] and self.isMinimized()) or (
++                (not globalconfig["showintab"]) and self.isHidden()
++            )
++            keep_hidden_for_overlay = bool(ovl.CONFIG.get("enable", 1)) and hidden_by_user
++            if (not keep_hidden_for_overlay) and (not gobject.base.transhis.isVisible()):
+                     self.show_()
+           if not raw:
+                text = self.cleartext(text)
 diff --git a/src/LunaTranslator/myutils/config.py b/src/LunaTranslator/myutils/config.py
 index c6a94926..9f292b4e 100644
 --- a/src/LunaTranslator/myutils/config.py

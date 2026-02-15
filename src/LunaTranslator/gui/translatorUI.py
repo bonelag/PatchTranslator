@@ -2,6 +2,7 @@ from qtsymbols import *
 import time, functools, threading, os, shutil, uuid
 from traceback import print_exc
 import windows, qtawesome, gobject, NativeUtils
+import ovl
 from myutils.wrapper import threader, tryprint
 from myutils.config import (
     globalconfig,
@@ -541,7 +542,13 @@ class TranslatorWindow(resizableframeless):
                 self.translate_text.clear()
             return
         if not is_auto_run:
-            if not gobject.base.transhis.isVisible():
+            # When overlay is enabled and user has intentionally minimized/hidden
+            # the translation window, do not auto-show it for one-shot OCR/translate.
+            hidden_by_user = (globalconfig["showintab"] and self.isMinimized()) or (
+                (not globalconfig["showintab"]) and self.isHidden()
+            )
+            keep_hidden_for_overlay = bool(ovl.CONFIG.get("enable", 1)) and hidden_by_user
+            if (not keep_hidden_for_overlay) and (not gobject.base.transhis.isVisible()):
                 self.show_()
         if not raw:
             text = self.cleartext(text)
