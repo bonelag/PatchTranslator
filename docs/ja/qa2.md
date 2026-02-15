@@ -28,4 +28,4 @@ LunaTranslator側では、単語を検索した後にクリックします。
 
 ---
 
-参考: [asukaminato0721](https://github.com/HIllya51/LunaTranslator/issues/796)
+参考: [asukaminato0721](https://github.com/bonelag/PatchTranslator/issues/796)

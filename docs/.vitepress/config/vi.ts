@@ -47,7 +47,7 @@ export const vi = defineConfig({
 
   themeConfig: {
     footer: {
-      copyright: `Phát hành theo giấy phép <a href="https://github.com/HIllya51/LunaTranslator/blob/main/LICENSE">GPLv3</a>`
+      copyright: `Phát hành theo giấy phép <a href="https://github.com/bonelag/PatchTranslator/blob/main/LICENSE">GPLv3</a>`
     },
     nav: [
       // { text: "Trang chủ", link: "https://lunatranslator.org/" },

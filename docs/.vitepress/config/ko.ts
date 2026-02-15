@@ -51,11 +51,11 @@ export const ko = defineConfig({
             label: "페이지 네비게이션"
         },
         footer: {
-            copyright: `<a href="https://github.com/HIllya51/LunaTranslator/blob/main/LICENSE">GPLv3</a> 라이선스 하에 배포됨`
+            copyright: `<a href="https://github.com/bonelag/PatchTranslator/blob/main/LICENSE">GPLv3</a> 라이선스 하에 배포됨`
         },
 
         editLink: {
-            pattern: 'https://github.com/HIllya51/LunaTranslator/edit/main/docs/:path',
+            pattern: 'https://github.com/bonelag/PatchTranslator/edit/main/docs/:path',
             text: 'GitHub에서 이 페이지 편집'
         },
 

@@ -49,10 +49,10 @@ export const ja = defineConfig({
             label: "ページナビゲーション"
         },
         footer: {
-            copyright: `<a href="https://github.com/HIllya51/LunaTranslator/blob/main/LICENSE">GPLv3</a> ライセンスに基づいて公開`
+            copyright: `<a href="https://github.com/bonelag/PatchTranslator/blob/main/LICENSE">GPLv3</a> ライセンスに基づいて公開`
         },
         editLink: {
-            pattern: 'https://github.com/HIllya51/LunaTranslator/edit/main/docs/:path',
+            pattern: 'https://github.com/bonelag/PatchTranslator/edit/main/docs/:path',
             text: 'GitHubでこのページを編集'
         },
 

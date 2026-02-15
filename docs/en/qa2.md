@@ -28,4 +28,4 @@ On the Luna side, after clicking on the word lookup.
 
 ---
 
-Reference: [asukaminato0721](https://github.com/HIllya51/LunaTranslator/issues/796)
+Reference: [asukaminato0721](https://github.com/bonelag/PatchTranslator/issues/796)

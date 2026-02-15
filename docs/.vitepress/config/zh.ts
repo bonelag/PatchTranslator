@@ -50,11 +50,11 @@ export const zh = defineConfig({
             label: "页面导航"
         },
         footer: {
-            copyright: `基于 <a href="https://github.com/HIllya51/LunaTranslator/blob/main/LICENSE">GPLv3</a> 许可发布`
+            copyright: `基于 <a href="https://github.com/bonelag/PatchTranslator/blob/main/LICENSE">GPLv3</a> 许可发布`
         },
 
         editLink: {
-            pattern: 'https://github.com/HIllya51/LunaTranslator/edit/main/docs/:path',
+            pattern: 'https://github.com/bonelag/PatchTranslator/edit/main/docs/:path',
             text: '在 GitHub 上编辑此页面'
         },
 

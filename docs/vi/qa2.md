@@ -28,4 +28,4 @@ Phía Luna, sau khi nhấp vào tra cứu từ.
 
 ---
 
-Tham khảo: [asukaminato0721](https://github.com/HIllya51/LunaTranslator/issues/796)
+Tham khảo: [asukaminato0721](https://github.com/bonelag/PatchTranslator/issues/796)

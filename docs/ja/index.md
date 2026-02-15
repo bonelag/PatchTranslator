@@ -21,7 +21,7 @@ hero:
       link: ./support
     - theme: alt  
       text: Github  
-      link: https://github.com/HIllya51/LunaTranslator  
+      link: https://github.com/bonelag/PatchTranslator  
 
 features:  
   - title: HOOK  

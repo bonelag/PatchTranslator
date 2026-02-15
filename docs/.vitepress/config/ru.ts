@@ -51,11 +51,11 @@ export const ru = defineConfig({
             label: "Навигация по странице"
         },
         footer: {
-            copyright: `Опубликовано под лицензией <a href="https://github.com/HIllya51/LunaTranslator/blob/main/LICENSE">GPLv3</a>`
+            copyright: `Опубликовано под лицензией <a href="https://github.com/bonelag/PatchTranslator/blob/main/LICENSE">GPLv3</a>`
         },
 
         editLink: {
-            pattern: 'https://github.com/HIllya51/LunaTranslator/edit/main/docs/:path',
+            pattern: 'https://github.com/bonelag/PatchTranslator/edit/main/docs/:path',
             text: 'Редактировать эту страницу на GitHub'
         },
 

@@ -8,6 +8,8 @@ import { ko, koSearch } from './ko'
 import { ru, ruSearch } from './ru'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
+declare const process: { env: Record<string, string | undefined> }
+
 const repo = process.env.GITHUB_REPOSITORY || ''
 const [owner, repoName] = repo.split('/')
 const isUserSite =
@@ -21,7 +23,7 @@ export default defineConfig({
   base,
   title: "LunaTranslator",
   head: [
-    ['link', { rel: 'icon', href: 'https://image.lunatranslator.org/luna.ico' }],
+    ['link', { rel: 'icon', type: 'image/png', href: `${base}logo.png` }],
   ],
   rewrites: {
     //  'zh/:rest*': ':rest*'
@@ -31,7 +33,7 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/HIllya51/LunaTranslator' }
+      { icon: 'github', link: 'https://github.com/bonelag/PatchTranslator' }
     ],
     outline: {
       level: [2, 3],
@@ -48,7 +50,7 @@ export default defineConfig({
         }
       }
     },
-    logo: 'https://image.lunatranslator.org/luna.ico'
+    logo: `${base}logo.png`
   },
 
   locales: {
@@ -62,7 +64,7 @@ export default defineConfig({
   },
   ignoreDeadLinks: true,
   markdown: {
-    config(md) {
+    config(md: any) {
       md.use(tabsMarkdownPlugin)
     }
   }

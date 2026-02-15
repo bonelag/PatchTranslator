@@ -33,6 +33,8 @@ jobs:
       - run: |
           cd docs
           export VITEPRESS_BASE=/PatchTranslator/
+          mkdir -p .vitepress/public
+          cp ../src/files/static/logo.png .vitepress/public/logo.png
           npm ci
           npm run docs:build
           cp index.html .vitepress/dist
