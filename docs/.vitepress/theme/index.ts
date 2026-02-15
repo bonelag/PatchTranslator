@@ -8,6 +8,14 @@ import giscus from './giscus.vue'
 import notfound from './notfound.vue';
 import DownloadLink from './components/DownloadLink.vue' // 路径根据你的结构调整
 import downloadbtn from './downloadbtn.vue' // 路径根据你的结构调整
+
+const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+const withBase = (path: string) => `${base}${path}`
+const getLangFromPath = (path: string) => {
+    const rel = base && path.startsWith(base) ? path.slice(base.length) : path
+    const seg = rel.split('/').filter(Boolean)[0]
+    return seg
+}
 export default {
     ...DefaultTheme,
     Layout() {
@@ -35,7 +43,7 @@ export default {
                     }
                     if (checkIfMobile()) return;
                     setTimeout(() => {
-                        window.open(`/${window.localStorage.currentlang}/support.html`, '_blank')
+                        window.open(withBase(`/${window.localStorage.currentlang}/support.html`), '_blank')
                     }, 1000);
                 });
             })
@@ -60,7 +68,7 @@ export default {
         const supportlangs = ['zh', 'en', 'ja', 'vi', 'cht', 'ko', 'ru']
         onMounted(
             () => {
-                let _ = window.location.pathname.split('/')[1]
+                let _ = getLangFromPath(window.location.pathname)
                 if (supportlangs.includes(_))
                     window.localStorage.currentlang = _
                 handleRouteChange()
@@ -70,7 +78,7 @@ export default {
         watch(
             () => router.route.path,
             (path) => {
-                let _ = path.split('/')[1]
+                let _ = getLangFromPath(path)
                 if (supportlangs.includes(_))
                     window.localStorage.currentlang = _
             }

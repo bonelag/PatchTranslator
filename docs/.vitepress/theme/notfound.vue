@@ -1,6 +1,8 @@
 <script setup>
 
 const supportlangs = ['zh', 'en', 'ja', 'vi', 'cht', 'ko', 'ru']
+const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+const withBase = (path) => `${base}${path}`
 
 function browserlang() {
     let l = navigator.language
@@ -16,18 +18,19 @@ function cachedlang() {
 function urlcheck() {
     let url = window.location.pathname;
     console.log(url)
-    let sps = url.split('/')
+    let rel = base && url.startsWith(base) ? url.slice(base.length) : url
+    let sps = rel.split('/')
     console.log(sps)
     if (sps.length >= 2) {
         if (!supportlangs.includes(sps[1])) {
-            window.location.pathname = `/${cachedlang()}/` + sps.slice(1).join('/')
+            window.location.pathname = withBase(`/${cachedlang()}/` + sps.slice(1).join('/'))
         }
         else {
-            window.location.pathname = `/${sps[1]}/`
+            window.location.pathname = withBase(`/${sps[1]}/`)
         }
     }
     else {
-        window.location.pathname = `/${cachedlang()}/`
+        window.location.pathname = withBase(`/${cachedlang()}/`)
     }
 }
 urlcheck()

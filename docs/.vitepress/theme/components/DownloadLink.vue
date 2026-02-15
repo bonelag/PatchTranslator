@@ -31,6 +31,9 @@
 <script setup>
 import { ref } from 'vue';
 
+const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+const withBase = (path) => `${base}${path}`
+
 const props = defineProps({
   href: { // 文件的实际URL
     type: String,
@@ -67,7 +70,7 @@ function _redirect() {
   lasttime = setTimeout(() => {
     if (window.__ishowing) return;
     if (curlink == window.location.href) {
-      window.location.href = `/${window.localStorage.currentlang}/support.html`
+      window.location.href = withBase(`/${window.localStorage.currentlang}/support.html`)
     }
   }, 1000)
 }
