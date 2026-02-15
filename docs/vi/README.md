@@ -4,7 +4,7 @@
 
 | Hệ điều hành | 64-bit |
 | - | - |
-| Windows 10 & 11 | <downloadbtn href="https://lunatranslator.org/Resource/DownloadLuna/x64_win10?doc=1"/> |
+| Windows 10 & 11 | <downloadbtn href="https://github.com/bonelag/PatchTranslator/releases/latest/download/LunaTranslator_x64_win10.zip"/> |
 
 ::: details Phiên bản tương thích hệ điều hành cũ  
 
