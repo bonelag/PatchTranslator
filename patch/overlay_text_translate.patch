@@ -1600,3 +1600,85 @@ index 340f98c9..87cd8b94 100644
 +    "关闭所有": "关闭所有"
  }
 \ No newline at end of file
+
+diff --git a/src/LunaTranslator/LunaTranslator.py b/src/LunaTranslator/LunaTranslator.py
+index f1bd910..dc1f8ab 100644
+--- a/src/LunaTranslator/LunaTranslator.py
++++ b/src/LunaTranslator/LunaTranslator.py
+@@ -407,7 +407,7 @@ class BASEOBJECT(QObject):
+                self.translation_ui.displayres.emit(
+                     dict(
+                          color=SpecialColor.RawTextColor,
+-                    res=text,
++                    res=self._sanitize_ui_text(text),
+                          clear=True,
+                          klass=str(uuid.uuid4()),
+                     )
+@@ -442,7 +442,7 @@ class BASEOBJECT(QObject):
+           self.currenttext_raw = text
+           self.statusok = False
+           self.latest_is_origin = True
+-        self.translation_ui.displayraw2.emit(text)
++        self.translation_ui.displayraw2.emit(self._sanitize_ui_text(text))
+
+      def textgetmethod(
+           self,
+@@ -523,7 +523,9 @@ class BASEOBJECT(QObject):
+                if len(text) > globalconfig["maxlength"]:
+                     text = text[: globalconfig["maxlength"]] + "……"
+
+-            self.translation_ui.displayraw1.emit(text, updateTranslate, is_auto_run)
++            self.translation_ui.displayraw1.emit(
++                self._sanitize_ui_text(text), updateTranslate, is_auto_run
++            )
+                if statusok:
+                     self.transhis.getnewsentencesignal.emit(text)
+                self.maybesetedittext(text)
+@@ -542,7 +544,10 @@ class BASEOBJECT(QObject):
+                self.dispatchoutputer(text, True)
+
+                _showrawfunction_unsafe = functools.partial(
+-                self.translation_ui.displayraw1.emit, text, updateTranslate, is_auto_run
++                self.translation_ui.displayraw1.emit,
++                self._sanitize_ui_text(text),
++                updateTranslate,
++                is_auto_run,
+                )
+                self.thishastranslated = globalconfig["showfanyi"]
+           _showrawfunction = lambda: (
+@@ -919,6 +924,20 @@ class BASEOBJECT(QObject):
+                return self.matchwhich(usedict.get("tts_skip_regex", []), text, isorigin)
+           return None
+
++    def _sanitize_tts_text(self, text: str) -> str:
++        return self._strip_ocr_coord_tags(text)
++
++    def _sanitize_ui_text(self, text: str) -> str:
++        return self._strip_ocr_coord_tags(text)
++
++    def _strip_ocr_coord_tags(self, text: str):
++        if not isinstance(text, str):
++            return text
++        # Remove OCR coordinate tags like: [123 456|78 9]
++        cleaned = re.sub(r"\[\d+ \d+\|\d+ \d+\]\s*", "", text)
++        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
++        return cleaned if cleaned else text
+
+      @threader
+      def readcurrent(self, force=False):
+           if (not force) and (not globalconfig["autoread"]):
+@@ -954,6 +973,7 @@ class BASEOBJECT(QObject):
+           if reader is None:
+                return
+           text2 = self.ttsrepair(text1, self.__usewhich())
++        text2 = self._sanitize_tts_text(text2)
+           self.audioplayer.timestamp = uuid.uuid4()
+           reader.read(text2, force, self.audioplayer.timestamp)
+
+@@ -961,6 +981,7 @@ class BASEOBJECT(QObject):
+      def read_text(self, text):
+           if not self.reader:
+                return
++        text = self._sanitize_tts_text(text)
+           self.audioplayer.timestamp = uuid.uuid4()
+           self.reader.read(text, True, self.audioplayer.timestamp)
