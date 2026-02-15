@@ -8,8 +8,17 @@ import { ko, koSearch } from './ko'
 import { ru, ruSearch } from './ru'
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
+const repo = process.env.GITHUB_REPOSITORY || ''
+const [owner, repoName] = repo.split('/')
+const isUserSite =
+  !!owner &&
+  !!repoName &&
+  repoName.toLowerCase() === `${owner.toLowerCase()}.github.io`
+const base = process.env.VITEPRESS_BASE || (isUserSite ? '/' : (repoName ? `/${repoName}/` : '/'))
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  base,
   title: "LunaTranslator",
   head: [
     ['link', { rel: 'icon', href: 'https://image.lunatranslator.org/luna.ico' }],

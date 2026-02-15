@@ -32,6 +32,7 @@ jobs:
       - uses: actions/configure-pages@v4
       - run: |
           cd docs
+          export VITEPRESS_BASE=/PatchTranslator/
           npm ci
           npm run docs:build
           cp index.html .vitepress/dist
