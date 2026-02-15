@@ -23,14 +23,6 @@ jobs:
           python-version: ${{ matrix.pythonversion }}
           architecture: ${{ matrix.arch }}
 
-      - name: Cache build downloads
-        uses: actions/cache@v4
-        with:
-          path: src/scripts/temp
-          key: build-downloads-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('src/scripts/build_lunatranslator.py') }}
-          restore-keys: |
-            build-downloads-${{ runner.os }}-${{ matrix.target }}-
-
       - name: Generate app icon from logo.png
         shell: powershell
         run: |

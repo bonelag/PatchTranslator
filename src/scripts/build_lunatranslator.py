@@ -356,14 +356,24 @@ if __name__ == "__main__":
         shutil.copytree(
             f"NativeImpl/LunaHook/builds/Release_{target}", "files/LunaHook"
         )
-        shutil.copytree(f"NativeImpl/builds/_x64_{target}", "NativeImpl/builds")
-        shutil.copytree(f"NativeImpl/builds/_x86_{target}", "NativeImpl/builds")
-        os.makedirs("files/DLL32")
-        shutil.copy(f"NativeImpl/builds/_x86_{target}/shareddllproxy32.exe", "files")
-        os.system(f"robocopy NativeImpl/builds/_x86_{target} files/DLL32 *.dll")
-        os.makedirs("files/DLL64")
-        shutil.copy(f"NativeImpl/builds/_x64_{target}/shareddllproxy64.exe", "files")
-        os.system(f"robocopy NativeImpl/builds/_x64_{target} files/DLL64 *.dll")
+        x64dir = f"NativeImpl/builds/_x64_{target}"
+        x86dir = f"NativeImpl/builds/_x86_{target}"
+
+        if os.path.exists(x64dir):
+            move_directory_contents(x64dir, "NativeImpl/builds")
+            os.makedirs("files/DLL64")
+            shareddllproxy64 = os.path.join(x64dir, "shareddllproxy64.exe")
+            if os.path.exists(shareddllproxy64):
+                shutil.copy(shareddllproxy64, "files")
+            os.system(f"robocopy {x64dir} files/DLL64 *.dll")
+
+        if os.path.exists(x86dir):
+            move_directory_contents(x86dir, "NativeImpl/builds")
+            os.makedirs("files/DLL32")
+            shareddllproxy32 = os.path.join(x86dir, "shareddllproxy32.exe")
+            if os.path.exists(shareddllproxy32):
+                shutil.copy(shareddllproxy32, "files")
+            os.system(f"robocopy {x86dir} files/DLL32 *.dll")
 
         os.system(
             f"python {os.path.join(rootthisfiledir,'collectall.py')} {arch} {target}"
