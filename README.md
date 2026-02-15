@@ -1,4 +1,6 @@
-# Software Download & FAQ
+# LunaTranslator
+
+Lightweight game text translator for Windows with HOOK, OCR, clipboard, TTS, and multi-engine translation support.
 
 ## Download
 
@@ -6,10 +8,10 @@
 | - | - |
 | Windows 10 & 11 | <downloadbtn href="https://lunatranslator.org/Resource/DownloadLuna/x64_win10?doc=1"/> |
 
-::: details Legacy OS Compatibility Version  
+::: details Legacy OS Compatibility Version
 
->[!WARNING]  
-These versions have poorer performance, run less stably, lack some features and functions, and are more prone to false positives from antivirus software. They are not recommended for use unless there is a specific need.
+>[!WARNING]
+Legacy builds are slower, less stable, and may have missing features. They are also more likely to be flagged by antivirus software. Use only when required.
 
 | OS | 32-bit | 64-bit |
 | - | - | - |
@@ -18,64 +20,81 @@ These versions have poorer performance, run less stably, lack some features and 
 
 :::
 
-## Launch
+## Quick Start
 
-After downloading, extract the files to any directory.
+1. Download and extract to any writable folder.
+2. Start the app.
+3. Select your text source (HOOK / OCR / Clipboard) and translation engines.
 
 ::: warning
-But please do not put the software in special paths such as **C:\Program Files**, otherwise, even with administrator privileges, you may not be able to save configuration and cache files, or even run the program.
+Do not place the application in protected paths such as **C:\Program Files**. It may fail to save config/cache or fail to run correctly.
 :::
 
-- **LunaTranslator.exe** will start in normal mode.
+### Launch Modes
 
-- **LunaTranslator_admin.exe** will start with administrator privileges, which is required for hooking some games; use this only when necessary, otherwise start in normal mode.
+- **LunaTranslator.exe**: normal mode (recommended)
+- **LunaTranslator_admin.exe**: elevated mode (only when a game requires admin-level hook/injection)
+- **LunaTranslator_debug.bat**: starts with console logs for troubleshooting
 
-- **LunaTranslator_debug.bat** will display a command-line window.
+## Update Policy
 
-## Update
+- Auto-update is enabled by default.
+- If auto-update fails, manually download a new package and overwrite the old directory.
 
-Updates are performed automatically by default. If automatic update fails, you can update manually.
+::: warning
+Do not delete `userconfig` if you want to keep your settings.
+:::
 
-To update manually, simply download the new version and extract it to overwrite the previous directory.
+## Security & Antivirus Notes
 
-If you want to delete and re-download, be careful not to delete the userconfig folder, otherwise you will lose your previous settings!!!
+HOOK mode requires DLL injection into target processes. Some antivirus products may flag related files (for example `shareddllproxy32.exe`, `LunaHost32.dll`) as suspicious.
 
+Builds are produced automatically by GitHub Actions:
+- https://github.com/HIllya51/LunaTranslator/actions
 
+If files are quarantined:
+1. Add the LunaTranslator folder to AV exclusions.
+2. Re-download and re-extract.
 
+::: details Windows Defender exclusion path
+“Virus & threat protection” -> “Exclusions” -> “Add or remove exclusions” -> “Add an exclusion” -> “Folder”, then choose LunaTranslator folder.
+
+![img](https://image.lunatranslator.org/zh/cantstart/4.png)
+![img](https://image.lunatranslator.org/zh/cantstart/3.png)
+:::
 
 ## Common Errors {#anchor-commonerros}
 
 ### Missing Important Components / Missing embedded Python3
 
 ::: danger
-Sometimes it may be flagged by antivirus software. Please add it to the trust list and re-download and extract.
+Most cases are caused by antivirus quarantine.
 :::
 
-![img](https://image.lunatranslator.org/zh/cantstart/2.jpg) 
+![img](https://image.lunatranslator.org/zh/cantstart/2.jpg)
+![img](https://image.lunatranslator.org/zh/missingpython.png)
 
-![img](https://image.lunatranslator.org/zh/missingpython.png) 
-
-Solution: Close antivirus software. If it cannot be closed (such as Windows Defender), add it to the trust list and then re-download.
-
-Note: To achieve HOOK extraction of game text, it is necessary to inject Dll into the game. Files such as shareddllproxy32.exe/LunaHost32.dll implement this, and therefore are particularly likely to be considered as viruses. The software is currently automatically built by [Github Actions](https://github.com/HIllya51/LunaTranslator/actions). Unless the Github server is infected, it is impossible to contain viruses, so it can be safely added to the trust list.
-
-::: details For Windows Defender, the method is: “Virus & threat protection” -> “Exclusions” -> “Add or remove exclusions” -> “Add an exclusion” -> “Folder”, add Luna's folder to it
-![img](https://image.lunatranslator.org/zh/cantstart/4.png) 
-![img](https://image.lunatranslator.org/zh/cantstart/3.png) 
-::: 
+Fix:
+1. Add folder exclusion in antivirus.
+2. Re-download and re-extract.
 
 ### Waiting for the DLL to be injected into the game... {#anchor-waitdll}
 
-The solution is the same as above.
+Same root cause and fix as above.
 
 ### Error/FileNotFoundError
 
-If trust isn't pre-established, some essential components might get deleted by antivirus software after the program has been running for a while. Then when selecting a process in HOOK mode, this error occurs. The solution is the same as above.
+Some runtime files were removed after startup (usually by antivirus). Add exclusion, then re-download/re-extract.
 
 <img src="https://image.lunatranslator.org/zh/notfound.png" width=400>
 
 ### Error/PermissionError
 
-If the software is placed in special folders such as `C:\Program Files`, it may not work properly.
+Usually caused by running inside protected directories (for example `C:\Program Files`). Move the folder to a normal writable path.
 
-<img src="https://image.lunatranslator.org/zh/cantstart/6.png"  width=400>
+<img src="https://image.lunatranslator.org/zh/cantstart/6.png" width=400>
+
+## Support
+
+- User docs: https://lunatranslator.org
+- Issues: https://github.com/HIllya51/LunaTranslator/issues
