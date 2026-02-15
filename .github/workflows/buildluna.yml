@@ -22,7 +22,6 @@ jobs:
         with:
           python-version: ${{ matrix.pythonversion }}
           architecture: ${{ matrix.arch }}
-          cache: pip
 
       - name: Cache build downloads
         uses: actions/cache@v4
