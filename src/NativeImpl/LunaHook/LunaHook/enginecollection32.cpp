@@ -29,6 +29,7 @@
 #include "engine32/For.h"
 #include "engine32/splushwave.h"
 #include "engine32/GJ.h"
+#include "engine32/ANOS.h"
 #include "engine32/FrontWing.h"
 #include "engine32/TAKUYO.h"
 #include "engine32/GSX.h"
@@ -44,7 +45,6 @@
 #include "engine32/Stronger.h"
 #include "engine32/Fizz.h"
 #include "engine32/Aromarie.h"
-#include "engine32/Ruf.h"
 #include "engine32/antique.h"
 #include "engine32/BunBun.h"
 #include "engine32/SYSD.h"
@@ -345,7 +345,6 @@ std::vector<ENGINE *> check_engines()
         new Speed,
         new FVP,
         new RUNE,
-        new Ruf,
         new Purple,
         new Purple2,
         new OVERDRIVE,
@@ -483,5 +482,6 @@ std::vector<ENGINE *> check_engines()
         new AZScript,
         new GLuer,
         new ZeroEscape,
+        new ANOS,
     };
 }

@@ -253,9 +253,7 @@ def createheaders(apiurl: str, curkey: str, maybeuse: dict, proxy, extra):
 class gptcommon(basetrans):
     @property
     def apiurl(self) -> str:
-        return self.config.get(
-            "API接口地址", self.config.get("OPENAI_API_BASE", "")
-        ).strip()
+        return self.config.get("API接口地址", "").strip()
 
     def langmap(self):
         return Languages.createenglishlangmap()
@@ -269,6 +267,7 @@ class gptcommon(basetrans):
         super().__init__(typename)
 
     def translate(self, query_2: GptTextWithDict):
+        self.checkempty("API接口地址")
         if isinstance(query_2, str):
             query_2 = GptTextWithDict(query_2)
         extrabody, extraheader = getcustombodyheaders(

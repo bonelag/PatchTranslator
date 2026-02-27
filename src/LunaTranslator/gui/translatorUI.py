@@ -541,9 +541,12 @@ class TranslatorWindow(resizableframeless):
             if clear:
                 self.translate_text.clear()
             return
-        if not is_auto_run:
-            # When overlay is enabled and user has intentionally minimized/hidden
-            # the translation window, do not auto-show it for one-shot OCR/translate.
+        if iter_context:
+            iter_res_status, iter_context_class = iter_context
+        else:
+            iter_res_status = 0
+        if (not iter_res_status) and (not is_auto_run):
+            # 流式输出时，不要每次都触发。
             hidden_by_user = (globalconfig["showintab"] and self.isMinimized()) or (
                 (not globalconfig["showintab"]) and self.isHidden()
             )
@@ -552,10 +555,6 @@ class TranslatorWindow(resizableframeless):
                 self.show_()
         if not raw:
             text = self.cleartext(text)
-        if iter_context:
-            iter_res_status, iter_context_class = iter_context
-        else:
-            iter_res_status = 0
         if iter_res_status:
             self.translate_text.iter_append(
                 clear, iter_context_class, texttype, name, text, color, klass
